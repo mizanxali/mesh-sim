@@ -94,7 +94,7 @@
   .stats span { color: var(--dim); font-size: 11px; }
   .legend > span:not(.tip) { display: inline-flex; align-items: center; gap: 5px; }
   .legend svg { width: 14px; height: 14px; color: var(--text); }
-  .legend { position: relative; display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 12px; }
+  .legend { display: flex; align-items: center; gap: 12px; font-size: 12px; }
   h2.head { position: relative; height: auto; margin-bottom: 12px; }
   .legend > span:not(.tip) { color: var(--dim); }
 
@@ -162,12 +162,13 @@
     <div><b id="sLost">0</b><span>lost</span></div>
     <div><b id="sAir">0</b><span>in flight</span></div>
   </div>
+  <h2 class="head">Legend <span class="tip" tabindex="0" data-tip="What moves on the map. A dot is a message being carried toward its recipient; each message has its own color. A check mark in the same color is the recipient's receipt travelling back, which is how the sender learns it was delivered. A small grey dot is the engine's own housekeeping between neighbors, not tied to any message you sent. A red cross is a frame the air lost."></span></h2>
   <div class="legend">
     <span><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="currentColor"/></svg>message</span>
     <span><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5 5.5 11 12 3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>receipt</span>
     <span><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="2.5" fill="#6b6b6b"/></svg>control</span>
     <span><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="var(--bad)" stroke-width="1.8" stroke-linecap="round"/></svg>lost</span>
-    <span class="tip" tabindex="0" data-tip="What moves on the map. A dot is a message being carried toward its recipient; each message has its own color. A check mark in the same color is the recipient's receipt travelling back, which is how the sender learns it was delivered. A small grey dot is the engine's own housekeeping between neighbors, not tied to any message you sent. A red cross is a frame the air lost."></span></div>
+  </div>
 
   <h2>Messages</h2>
   <div class="msgs"><table><thead><tr><th>route</th><th>status</th><th title="Frames this message and its receipt cost">frames</th><th title="Devices that carried it on the way">relays</th></tr></thead><tbody id="msgs"></tbody></table></div>
