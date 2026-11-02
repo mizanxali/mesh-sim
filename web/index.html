@@ -12,9 +12,21 @@
     --text: #ededed; --dim: #8f8f8f; --faint: #5a5a5a; --accent: #f2c94c; --good: #6fcf97; --bad: #eb5757;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; height: 100vh; display: flex; background: var(--bg); color: var(--text); font: 13px/1.5 system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
-  canvas { flex: 1; min-width: 0; display: block; cursor: crosshair; touch-action: none; }
-  aside { width: 340px; overflow-y: auto; padding: 20px 18px; background: var(--panel); border-left: 1px solid var(--hair); scrollbar-width: thin; scrollbar-color: #2a2a2a transparent; }
+  body { margin: 0; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font: 13px/1.5 system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; }
+  /* Cards float over the map; the columns let clicks through between them. */
+  .col { position: fixed; top: 16px; bottom: 16px; width: 316px; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
+  .col.left { left: 16px; } .col.right { right: 16px; }
+  .card {
+    pointer-events: auto; min-height: 0; flex: 0 1 auto; overflow-y: auto; padding: 16px; border-radius: 24px;
+    background: oklch(0.12 0 0 / 0.82); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    box-shadow: var(--ring), 0 16px 40px oklch(0 0 0 / 0.5);
+    scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
+  }
+  .card.intro, .card.network { flex: none; }
+  .card.log { flex: 0 1 auto; min-height: 120px; }
+  .card > h2:first-child { margin-top: 0; }
+  .card.network { max-height: 60%; overflow-y: auto; }
   h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; }
   h2 { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 22px 0 10px; }
   p { margin: 0 0 8px; color: var(--dim); text-wrap: pretty; }
@@ -58,7 +70,7 @@
     box-shadow: var(--ring), 0 12px 32px oklch(0 0 0 / 0.6);
   }
 
-  details { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--hair); }
+  details { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--hair); }
   summary { cursor: pointer; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin-bottom: 12px; list-style: none; transition: color 150ms ease-out; }
   summary::-webkit-details-marker { display: none; }
   summary::before { content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 9px 2px 1px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; rotate: -45deg; transition: rotate 150ms ease-out; }
@@ -73,18 +85,19 @@
   .legend span { color: var(--dim); }
 
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--hair); }
+  td, th { text-align: left; white-space: nowrap; padding: 6px 4px; border-bottom: 1px solid var(--hair); }
   th { color: var(--faint); font-weight: 500; font-size: 11px; }
   td.confirmed { color: var(--good); } td.failed { color: var(--bad); } td.sent, td.received { color: var(--dim); }
   .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-  ol { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; font-size: 12px; scrollbar-width: thin; scrollbar-color: #2a2a2a transparent; }
+  ol { list-style: none; margin: 0; padding: 0; font-size: 12px; scrollbar-width: thin; scrollbar-color: #2a2a2a transparent; }
   ol li { padding: 4px 0; border-bottom: 1px solid oklch(1 0 0 / 0.05); color: var(--dim); }
   ol li.good { color: var(--good); } ol li.bad { color: var(--bad); }
 </style>
 </head>
 <body>
 <canvas id="map" aria-label="Mesh map: double-click to add a device, drag to move it, click two devices to send"></canvas>
-<aside>
+<div class="col left">
+<section class="card intro">
   <h1>Mesh playground</h1>
   <p>Every device here runs the real Offline Protocol engine, compiled to WebAssembly. Nothing about forwarding is faked: you are watching the engine decide who carries what.</p>
   <div class="help">
@@ -93,7 +106,9 @@
     <kbd>Click</kbd><span>a device, then another, to send</span>
     <kbd>Right-click</kbd><span>remove a device</span>
   </div>
+</section>
 
+<section class="card controls">
   <h2>Devices</h2>
   <div class="row">
     <button id="scatter">Scatter</button><input id="count" type="number" min="2" max="60" value="20" aria-label="How many devices to scatter">
@@ -128,22 +143,29 @@
     <label>Extra delay, up to <span class="tip" tabindex="0" data-tip="Each frame spends a random 0 to this many extra rounds on the air, so copies arrive late and out of order, as on a busy radio."></span><output id="delayOut"></output><input id="delay" type="range" min="0" max="5" value="0"></label>
     <label>Round length <span class="tip" tabindex="0" data-tip="Real time per round: the playback speed. The engine's own timers (receipt timeouts, retries) run on real time, not rounds, so with longer rounds a retry comes after fewer of them."></span><output id="speedOut"></output><input id="speed" type="range" min="100" max="2000" step="50" value="500"></label>
   </details>
+</section>
+</div>
 
+<div class="col right">
+<section class="card network">
   <h2>Network</h2>
   <div class="stats">
     <div><b id="sRound">0</b><span>round</span></div>
     <div><b id="sFrames">0</b><span>frames</span></div>
     <div><b id="sLost">0</b><span>lost</span></div>
-    <div><b id="sAir">0</b><span>on the air</span></div>
+    <div><b id="sAir">0</b><span>in flight</span></div>
   </div>
   <p class="legend"><span>● message</span><span>○ receipt</span><span>· control</span></p>
 
   <h2>Messages</h2>
   <table><thead><tr><th>route</th><th>status</th><th title="Frames this message and its receipt cost">frames</th><th title="Devices that carried it on the way">relays</th></tr></thead><tbody id="msgs"></tbody></table>
+</section>
 
+<section class="card log">
   <h2>Log</h2>
   <ol id="log"></ol>
-</aside>
+</section>
+</div>
 
 <script type="module">
 import init, { MeshSim } from './pkg/mesh_sim.js';
@@ -240,11 +262,14 @@ function scatter() {
   clearAll();
   const n = Math.max(2, Math.min(60, +$('count').value || 20));
   const { width, height } = canvas.getBoundingClientRect();
+  const left = document.querySelector('.col.left').getBoundingClientRect().right;
+  const right = document.querySelector('.col.right').getBoundingClientRect().left;
+  const open = right - left > 300 ? { x: left, w: right - left } : { x: 0, w: width };
   // Sized so a device has a few neighbors in range: spread over the whole
   // screen, a crowd on a wide monitor falls apart into islands.
   const side = params().range * Math.sqrt(n * 0.9);
-  const w = Math.min(width - 80, side), h = Math.min(height - 80, side);
-  const x0 = (width - w) / 2, y0 = (height - h) / 2;
+  const w = Math.min(open.w - 80, side), h = Math.min(height - 80, side);
+  const x0 = open.x + (open.w - w) / 2, y0 = (height - h) / 2;
   for (let i = 0; i < n; i++) addDevice(x0 + Math.random() * w, y0 + Math.random() * h);
   log(`scattered ${n} devices, ${links.size} links`);
 }
@@ -299,7 +324,7 @@ function tick() {
   renderMessages();
 }
 
-const STATUS = { sent: 'travelling', received: 'received, receipt on its way', confirmed: '✓ delivered', failed: '✗ failed' };
+const STATUS = { sent: 'travelling', received: 'received', confirmed: '✓ delivered', failed: '✗ failed' };
 function renderMessages() {
   $('msgs').innerHTML = '';
   for (const m of [...messages.values()].reverse().slice(0, 30)) {
@@ -308,7 +333,7 @@ function renderMessages() {
     cells.forEach((text, i) => {
       const td = document.createElement('td');
       if (i === 0) { const s = document.createElement('span'); s.className = 'swatch'; s.style.background = `hsl(${m.hue} 80% 60%)`; td.append(s); }
-      if (i === 1) td.className = m.status;
+      if (i === 1) { td.className = m.status; if (m.status === 'received') td.title = 'The recipient has it; its receipt is still on the way back'; }
       td.append(String(text));
       tr.append(td);
     });
