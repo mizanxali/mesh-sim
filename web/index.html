@@ -5,46 +5,81 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mesh playground</title>
 <style>
-  :root { color-scheme: dark; --bg: #0e1116; --panel: #161b22; --line: #2a313c; --text: #d7dde5; --dim: #8b95a3; --accent: #f2c94c; }
+  :root {
+    color-scheme: dark;
+    --bg: #000; --panel: #0a0a0a; --raised: oklch(1 0 0 / 0.05); --raised-hover: oklch(1 0 0 / 0.09);
+    --hair: oklch(1 0 0 / 0.08); --ring: 0 0 0 1px oklch(1 0 0 / 0.08); --ring-hover: 0 0 0 1px oklch(1 0 0 / 0.13);
+    --text: #ededed; --dim: #8f8f8f; --faint: #5a5a5a; --accent: #f2c94c; --good: #6fcf97; --bad: #eb5757;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; height: 100vh; display: flex; background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, sans-serif; }
+  body { margin: 0; height: 100vh; display: flex; background: var(--bg); color: var(--text); font: 13px/1.5 system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
   canvas { flex: 1; min-width: 0; display: block; cursor: crosshair; touch-action: none; }
-  aside { width: 340px; overflow-y: auto; padding: 16px; background: var(--panel); border-left: 1px solid var(--line); }
-  h1 { font-size: 16px; margin: 0 0 4px; }
-  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin: 18px 0 8px; }
-  p { margin: 0 0 8px; color: var(--dim); }
-  label { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin-bottom: 10px; }
-  label input[type=range] { grid-column: 1 / -1; width: 100%; }
-  output { font-variant-numeric: tabular-nums; color: var(--text); }
-  .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-  button { background: #222a35; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; min-height: 32px; }
-  button:hover { border-color: var(--dim); }
-  input[type=text], input[type=number] { background: #0e1116; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
-  input[type=number] { width: 56px; }
-  select { flex: 1; min-width: 0; background: #0e1116; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .stats div { background: #0e1116; border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
-  .stats b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
-  .stats span { color: var(--dim); font-size: 11px; }
-  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  td, th { text-align: left; padding: 3px 4px; border-bottom: 1px solid var(--line); }
-  th { color: var(--dim); font-weight: normal; font-size: 11px; }
-  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
-  ol { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; font-size: 12px; }
-  ol li { padding: 2px 0; border-bottom: 1px solid #1d232c; color: var(--dim); }
-  ol li.good { color: #6fcf97; } ol li.bad { color: #eb5757; }
-  .legend span { margin-right: 10px; color: var(--dim); }
-  label, .row { position: relative; }
-  label { grid-template-columns: auto 1fr auto; }
-  label output { grid-column: 3; }
-  .tip { display: inline-grid; place-items: center; width: 16px; height: 16px; align-self: center; border: 1px solid var(--line); border-radius: 50%; color: var(--dim); font-size: 11px; cursor: help; }
+  aside { width: 340px; overflow-y: auto; padding: 20px 18px; background: var(--panel); border-left: 1px solid var(--hair); scrollbar-width: thin; scrollbar-color: #2a2a2a transparent; }
+  h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; }
+  h2 { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 22px 0 10px; }
+  p { margin: 0 0 8px; color: var(--dim); text-wrap: pretty; }
+  .help { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; margin: 14px 0 0; font-size: 12px; color: var(--dim); }
+  .help kbd { justify-self: start; }
+  kbd { background: var(--raised); box-shadow: var(--ring); border-radius: 4px; padding: 1px 5px; font: inherit; font-size: 11px; color: var(--text); }
+
+  label { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 6px; margin-bottom: 12px; }
+  label input[type=range] { grid-column: 1 / -1; width: 100%; margin: 4px 0 0; }
+  label output { grid-column: 3; color: var(--dim); }
+  output, .stats b, table { font-variant-numeric: tabular-nums; }
+  input[type=range] { accent-color: #fff; height: 16px; cursor: pointer; }
+
+  .row { position: relative; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  button {
+    background: var(--raised); color: var(--text); border: 0; box-shadow: var(--ring); border-radius: 8px;
+    padding: 0 12px; min-height: 32px; font: inherit; font-weight: 500; cursor: pointer;
+    transition-property: background-color, box-shadow, scale; transition-duration: 150ms; transition-timing-function: ease-out;
+  }
+  button:hover { background: var(--raised-hover); box-shadow: var(--ring-hover); }
+  button:active { scale: 0.96; }
+  button.primary { background: #fff; color: #000; box-shadow: none; }
+  button.primary:hover { background: #d9d9d9; }
+  button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid oklch(1 0 0 / 0.5); outline-offset: 2px; }
+  input[type=text], input[type=number], select {
+    background: #000; color: var(--text); border: 1px solid oklch(1 0 0 / 0.1); border-radius: 8px;
+    min-height: 32px; padding: 0 10px; font: inherit; transition: border-color 150ms ease-out;
+  }
+  input[type=text]:hover, input[type=number]:hover, select:hover { border-color: oklch(1 0 0 / 0.18); }
+  input[type=number] { width: 56px; padding-right: 4px; }
+  select { flex: 1; min-width: 0; cursor: pointer; }
+  .arrow { color: var(--faint); }
+
+  .tip { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; box-shadow: var(--ring); color: var(--faint); font-size: 10px; font-weight: 600; cursor: help; transition: color 150ms ease-out, box-shadow 150ms ease-out; }
+  .row .tip { margin-left: auto; }
   .tip::before { content: "?"; }
-  .tip:hover, .tip:focus-visible { color: var(--text); border-color: var(--dim); outline: none; }
-  .tip:hover::after, .tip:focus::after { content: attr(data-tip); position: absolute; z-index: 1; left: 0; right: 0; top: calc(100% + 4px); padding: 8px 10px; background: #0b0e13; border: 1px solid var(--line); border-radius: 6px; color: var(--text); font-size: 12px; line-height: 1.45; white-space: normal; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
-  details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 10px; }
-  summary { cursor: pointer; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin-bottom: 10px; }
+  .tip:hover, .tip:focus-visible { color: var(--text); box-shadow: var(--ring-hover); outline: none; }
+  .tip:hover::after, .tip:focus::after {
+    content: attr(data-tip); position: absolute; z-index: 1; left: 0; right: 0; top: calc(100% + 6px);
+    padding: 10px 12px; background: #141414; border-radius: 8px; color: var(--text); font-size: 12px; font-weight: 400; line-height: 1.5;
+    box-shadow: var(--ring), 0 12px 32px oklch(0 0 0 / 0.6);
+  }
+
+  details { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--hair); }
+  summary { cursor: pointer; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin-bottom: 12px; list-style: none; transition: color 150ms ease-out; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 9px 2px 1px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; rotate: -45deg; transition: rotate 150ms ease-out; }
+  details[open] summary::before { rotate: 45deg; }
   summary:hover { color: var(--text); }
-  kbd { background: #0e1116; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font: inherit; color: var(--text); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .stats div { background: var(--raised); box-shadow: var(--ring); border-radius: 8px; padding: 8px 10px; }
+  .stats b { display: block; font-size: 16px; font-weight: 600; }
+  .stats span { color: var(--dim); font-size: 11px; }
+  .legend { display: flex; gap: 14px; margin-top: 10px; font-size: 12px; }
+  .legend span { color: var(--dim); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--hair); }
+  th { color: var(--faint); font-weight: 500; font-size: 11px; }
+  td.confirmed { color: var(--good); } td.failed { color: var(--bad); } td.sent, td.received { color: var(--dim); }
+  .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  ol { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; font-size: 12px; scrollbar-width: thin; scrollbar-color: #2a2a2a transparent; }
+  ol li { padding: 4px 0; border-bottom: 1px solid oklch(1 0 0 / 0.05); color: var(--dim); }
+  ol li.good { color: var(--good); } ol li.bad { color: var(--bad); }
 </style>
 </head>
 <body>
@@ -52,11 +87,16 @@
 <aside>
   <h1>Mesh playground</h1>
   <p>Every device here runs the real Offline Protocol engine, compiled to WebAssembly. Nothing about forwarding is faked: you are watching the engine decide who carries what.</p>
-  <p><kbd>Double-click</kbd> add a device · <kbd>Drag</kbd> move it · <kbd>Click</kbd> one device, then another, to send · <kbd>Right-click</kbd> remove</p>
+  <div class="help">
+    <kbd>Double-click</kbd><span>add a device</span>
+    <kbd>Drag</kbd><span>move it</span>
+    <kbd>Click</kbd><span>a device, then another, to send</span>
+    <kbd>Right-click</kbd><span>remove a device</span>
+  </div>
 
   <h2>Devices</h2>
   <div class="row">
-    <button id="scatter">Scatter</button><input id="count" type="number" min="2" max="60" value="14" aria-label="How many devices to scatter">
+    <button id="scatter">Scatter</button><input id="count" type="number" min="2" max="60" value="20" aria-label="How many devices to scatter">
     <button id="clear">Clear</button>
     <span class="tip" tabindex="0" data-tip="Scatter replaces the map with this many devices dropped at random. Clear removes every device. You can also double-click the map to add one, drag to move it, and right-click to remove it."></span>
   </div>
@@ -73,9 +113,9 @@
     <span class="tip" tabindex="0" data-tip="What the next message says."></span>
   </div>
   <div class="row">
-    <select id="from" aria-label="Sender"></select><span style="align-self:center">→</span>
+    <select id="from" aria-label="Sender"></select><span class="arrow">→</span>
     <select id="to" aria-label="Recipient"></select>
-    <button id="sendBtn">Send</button>
+    <button id="sendBtn" class="primary">Send</button>
     <span class="tip" tabindex="0" data-tip="Sends from one device to another. The same as clicking the sender on the map, then the recipient."></span>
   </div>
   <div class="row"><button id="random">Send between two random devices</button>
@@ -92,11 +132,11 @@
   <h2>Network</h2>
   <div class="stats">
     <div><b id="sRound">0</b><span>round</span></div>
-    <div><b id="sFrames">0</b><span>frames sent</span></div>
+    <div><b id="sFrames">0</b><span>frames</span></div>
     <div><b id="sLost">0</b><span>lost</span></div>
     <div><b id="sAir">0</b><span>on the air</span></div>
   </div>
-  <p class="legend" style="margin-top:8px"><span>● message</span><span>○ receipt</span><span style="color:#5c6673">• control</span></p>
+  <p class="legend"><span>● message</span><span>○ receipt</span><span>· control</span></p>
 
   <h2>Messages</h2>
   <table><thead><tr><th>route</th><th>status</th><th title="Frames this message and its receipt cost">frames</th><th title="Devices that carried it on the way">relays</th></tr></thead><tbody id="msgs"></tbody></table>
@@ -198,9 +238,14 @@ function clearAll() {
 
 function scatter() {
   clearAll();
-  const n = Math.max(2, Math.min(60, +$('count').value || 14));
+  const n = Math.max(2, Math.min(60, +$('count').value || 20));
   const { width, height } = canvas.getBoundingClientRect();
-  for (let i = 0; i < n; i++) addDevice(40 + Math.random() * (width - 80), 40 + Math.random() * (height - 80));
+  // Sized so a device has a few neighbors in range: spread over the whole
+  // screen, a crowd on a wide monitor falls apart into islands.
+  const side = params().range * Math.sqrt(n * 0.9);
+  const w = Math.min(width - 80, side), h = Math.min(height - 80, side);
+  const x0 = (width - w) / 2, y0 = (height - h) / 2;
+  for (let i = 0; i < n; i++) addDevice(x0 + Math.random() * w, y0 + Math.random() * h);
   log(`scattered ${n} devices, ${links.size} links`);
 }
 
@@ -263,6 +308,7 @@ function renderMessages() {
     cells.forEach((text, i) => {
       const td = document.createElement('td');
       if (i === 0) { const s = document.createElement('span'); s.className = 'swatch'; s.style.background = `hsl(${m.hue} 80% 60%)`; td.append(s); }
+      if (i === 1) td.className = m.status;
       td.append(String(text));
       tr.append(td);
     });
@@ -295,7 +341,7 @@ function draw(now) {
     const h = heat.get(k), glow = h ? Math.max(0, 1 - (now - h.t) / 2000) : 0;
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
     ctx.lineWidth = 1.5 + glow * 3;
-    ctx.strokeStyle = glow ? `hsla(${h.hue},80%,60%,${0.25 + glow * 0.6})` : '#2a313c';
+    ctx.strokeStyle = glow ? `hsla(${h.hue},80%,60%,${0.25 + glow * 0.6})` : 'rgba(255,255,255,0.12)';
     ctx.stroke();
   }
   ctx.lineWidth = 1.5;
@@ -311,20 +357,20 @@ function draw(now) {
       continue;
     }
     ctx.beginPath();
-    if (f.kind === 'control') { ctx.arc(x, y, 2.5, 0, 7); ctx.fillStyle = '#5c6673'; ctx.fill(); }
+    if (f.kind === 'control') { ctx.arc(x, y, 2.5, 0, 7); ctx.fillStyle = '#6b6b6b'; ctx.fill(); }
     else if (f.kind === 'receipt') { ctx.arc(x, y, 4.5, 0, 7); ctx.strokeStyle = `hsl(${f.hue} 80% 65%)`; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1.5; }
     else { ctx.arc(x, y, 5.5, 0, 7); ctx.fillStyle = `hsl(${f.hue} 80% 60%)`; ctx.fill(); }
   }
-  ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+  ctx.font = '500 11px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center';
   for (const [id, d] of devices) {
     const flash = Math.max(0, 1 - (now - d.flash) / 1200);
     if (flash) { ctx.beginPath(); ctx.arc(d.x, d.y, 14 + flash * 12, 0, 7); ctx.fillStyle = `rgba(111,207,151,${flash * 0.35})`; ctx.fill(); }
     ctx.beginPath(); ctx.arc(d.x, d.y, 12, 0, 7);
-    ctx.fillStyle = '#1c232d'; ctx.fill();
+    ctx.fillStyle = '#111'; ctx.fill();
     ctx.lineWidth = id === selected ? 3 : 1.5;
-    ctx.strokeStyle = id === selected ? '#f2c94c' : id === hover ? '#8b95a3' : '#4a5563';
+    ctx.strokeStyle = id === selected ? '#f2c94c' : id === hover ? '#9a9a9a' : '#4d4d4d';
     ctx.stroke();
-    ctx.fillStyle = '#d7dde5'; ctx.fillText(id, d.x, d.y + 27);
+    ctx.fillStyle = '#bdbdbd'; ctx.fillText(id, d.x, d.y + 27);
   }
   requestAnimationFrame(draw);
 }
