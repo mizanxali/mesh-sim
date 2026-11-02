@@ -34,6 +34,16 @@
   ol li { padding: 2px 0; border-bottom: 1px solid #1d232c; color: var(--dim); }
   ol li.good { color: #6fcf97; } ol li.bad { color: #eb5757; }
   .legend span { margin-right: 10px; color: var(--dim); }
+  label, .row { position: relative; }
+  label { grid-template-columns: auto 1fr auto; }
+  label output { grid-column: 3; }
+  .tip { display: inline-grid; place-items: center; width: 16px; height: 16px; align-self: center; border: 1px solid var(--line); border-radius: 50%; color: var(--dim); font-size: 11px; cursor: help; }
+  .tip::before { content: "?"; }
+  .tip:hover, .tip:focus-visible { color: var(--text); border-color: var(--dim); outline: none; }
+  .tip:hover::after, .tip:focus::after { content: attr(data-tip); position: absolute; z-index: 1; left: 0; right: 0; top: calc(100% + 4px); padding: 8px 10px; background: #0b0e13; border: 1px solid var(--line); border-radius: 6px; color: var(--text); font-size: 12px; line-height: 1.45; white-space: normal; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+  details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 10px; }
+  summary { cursor: pointer; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin-bottom: 10px; }
+  summary:hover { color: var(--text); }
   kbd { background: #0e1116; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font: inherit; color: var(--text); }
 </style>
 </head>
@@ -48,25 +58,36 @@
   <div class="row">
     <button id="scatter">Scatter</button><input id="count" type="number" min="2" max="60" value="14" aria-label="How many devices to scatter">
     <button id="clear">Clear</button>
+    <span class="tip" tabindex="0" data-tip="Scatter replaces the map with this many devices dropped at random. Clear removes every device. You can also double-click the map to add one, drag to move it, and right-click to remove it."></span>
   </div>
-  <label>Radio range <output id="rangeOut"></output><input id="range" type="range" min="60" max="400" value="170"></label>
-  <label>Links per device <output id="capOut"></output><input id="cap" type="range" min="1" max="9" value="4"></label>
+  <label>Radio range <span class="tip" tabindex="0" data-tip="How far a device's radio reaches. Two devices closer than this can link. Hover a device to see its range as a dashed circle."></span><output id="rangeOut"></output><input id="range" type="range" min="60" max="400" value="170"></label>
 
   <h2>Air</h2>
-  <label>Frames lost <output id="lossOut"></output><input id="loss" type="range" min="0" max="90" value="0"></label>
-  <label>Extra delay, up to <output id="delayOut"></output><input id="delay" type="range" min="0" max="5" value="0"></label>
-  <label>Round length <output id="speedOut"></output><input id="speed" type="range" min="100" max="2000" step="50" value="500"></label>
-  <p>The engine's timers (acknowledgement timeouts, retries) run on real time, so longer rounds mean fewer rounds before a retry fires.</p>
-  <div class="row"><button id="play">Pause</button><button id="step">Step one round</button></div>
+  <label>Frames lost <span class="tip" tabindex="0" data-tip="The share of frames that never arrive, as on a noisy radio. A lost frame still used airtime. Retries and the other paths through the mesh are what get a message through anyway."></span><output id="lossOut"></output><input id="loss" type="range" min="0" max="90" value="0"></label>
+  <div class="row"><button id="play">Pause</button><button id="step">Step one round</button>
+    <span class="tip" tabindex="0" data-tip="The network moves in rounds: each device handles what it received, and each frame crosses one link. Pause freezes it; Step one round moves it on by exactly one, to follow a message hop by hop. The engine's clock keeps running while paused, so retries that come due fire together when you resume."></span>
+  </div>
 
   <h2>Send</h2>
-  <div class="row"><input id="text" type="text" value="meet at the north gate" aria-label="Message text" style="flex:1"></div>
+  <div class="row"><input id="text" type="text" value="meet at the north gate" aria-label="Message text" style="flex:1">
+    <span class="tip" tabindex="0" data-tip="What the next message says."></span>
+  </div>
   <div class="row">
     <select id="from" aria-label="Sender"></select><span style="align-self:center">→</span>
     <select id="to" aria-label="Recipient"></select>
     <button id="sendBtn">Send</button>
+    <span class="tip" tabindex="0" data-tip="Sends from one device to another. The same as clicking the sender on the map, then the recipient."></span>
   </div>
-  <div class="row"><button id="random">Send between two random devices</button></div>
+  <div class="row"><button id="random">Send between two random devices</button>
+    <span class="tip" tabindex="0" data-tip="Picks a sender and a recipient at random. They may be out of reach of each other, which is worth seeing too."></span>
+  </div>
+
+  <details>
+    <summary>Advanced</summary>
+    <label>Links per device <span class="tip" tabindex="0" data-tip="The most neighbors a device holds at once. A phone over Bluetooth LE manages about 4. Devices nearest each other link first, so lowering this thins the mesh and can cut it into islands."></span><output id="capOut"></output><input id="cap" type="range" min="1" max="9" value="4"></label>
+    <label>Extra delay, up to <span class="tip" tabindex="0" data-tip="Each frame spends a random 0 to this many extra rounds on the air, so copies arrive late and out of order, as on a busy radio."></span><output id="delayOut"></output><input id="delay" type="range" min="0" max="5" value="0"></label>
+    <label>Round length <span class="tip" tabindex="0" data-tip="Real time per round: the playback speed. The engine's own timers (receipt timeouts, retries) run on real time, not rounds, so with longer rounds a retry comes after fewer of them."></span><output id="speedOut"></output><input id="speed" type="range" min="100" max="2000" step="50" value="500"></label>
+  </details>
 
   <h2>Network</h2>
   <div class="stats">
@@ -355,6 +376,8 @@ for (const name of Object.keys(fmt)) {
   input.addEventListener('input', update);
   update();
 }
+// A tip inside a label would otherwise hand focus to the slider and close itself.
+for (const tip of document.querySelectorAll('.tip')) tip.addEventListener('click', (e) => e.preventDefault());
 $('scatter').onclick = scatter;
 $('clear').onclick = () => { clearAll(); log('cleared'); };
 $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; schedule(); };
