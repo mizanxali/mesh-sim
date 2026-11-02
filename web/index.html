@@ -21,6 +21,7 @@
   button:hover { border-color: var(--dim); }
   input[type=text], input[type=number] { background: #0e1116; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
   input[type=number] { width: 56px; }
+  select { flex: 1; min-width: 0; background: #0e1116; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .stats div { background: #0e1116; border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
   .stats b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
@@ -60,6 +61,11 @@
 
   <h2>Send</h2>
   <div class="row"><input id="text" type="text" value="meet at the north gate" aria-label="Message text" style="flex:1"></div>
+  <div class="row">
+    <select id="from" aria-label="Sender"></select><span style="align-self:center">→</span>
+    <select id="to" aria-label="Recipient"></select>
+    <button id="sendBtn">Send</button>
+  </div>
   <div class="row"><button id="random">Send between two random devices</button></div>
 
   <h2>Network</h2>
@@ -132,6 +138,17 @@ function relink() {
   for (const k of links) if (!next.has(k)) sim.unlink(...k.split('|'));
   for (const k of next) if (!links.has(k)) sim.link(...k.split('|'));
   links = next;
+  syncPickers();
+}
+
+// The sender and recipient lists follow the devices on the map.
+function syncPickers() {
+  const ids = [...devices.keys()].sort();
+  for (const [i, sel] of [$('from'), $('to')].entries()) {
+    const keep = sel.value;
+    sel.replaceChildren(...ids.map((id) => new Option(id, id)));
+    sel.value = ids.includes(keep) ? keep : (ids[i] ?? '');
+  }
 }
 
 function addDevice(x, y) {
@@ -155,6 +172,7 @@ function clearAll() {
   for (const id of [...devices.keys()]) { sim.removeNode(id); }
   devices.clear(); links.clear(); anims.length = 0; heat.clear();
   selected = null; nameIndex = 0;
+  syncPickers();
 }
 
 function scatter() {
@@ -310,8 +328,9 @@ canvas.addEventListener('pointermove', (e) => {
 canvas.addEventListener('pointerup', () => {
   if (drag && !drag.moved) {
     if (!drag.id) selected = null;
-    else if (!selected || selected === drag.id) selected = selected === drag.id ? null : drag.id;
-    else { send(selected, drag.id); selected = null; }
+    else if (selected === drag.id) selected = null;
+    else if (!selected) { selected = drag.id; $('from').value = selected; }
+    else { $('to').value = drag.id; send(selected, drag.id); selected = null; }
   }
   drag = null;
 });
@@ -341,6 +360,12 @@ $('clear').onclick = () => { clearAll(); log('cleared'); };
 $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; schedule(); };
 $('step').onclick = () => tick();
 $('speed').addEventListener('input', schedule);
+$('sendBtn').onclick = () => {
+  const from = $('from').value, to = $('to').value;
+  if (!from || !to) return;
+  if (from === to) { log('pick two different devices', 'bad'); return; }
+  send(from, to);
+};
 $('random').onclick = () => {
   const ids = [...devices.keys()];
   if (ids.length < 2) return;
