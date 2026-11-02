@@ -26,7 +26,9 @@
   .card.intro, .card.network { flex: none; }
   .card.log { flex: 0 1 auto; min-height: 120px; }
   .card > h2:first-child { margin-top: 0; }
-  .card.network { max-height: 60%; overflow-y: auto; }
+  /* Its tips must spill over the log card below, so the table scrolls instead of the card. */
+  .card.network { overflow: visible; position: relative; z-index: 2; }
+  .msgs { max-height: 34vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2a2a2a transparent; }
   h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; }
   h2 { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 24px 0 12px; }
   p { margin: 0 0 8px; color: var(--dim); text-wrap: pretty; }
@@ -73,7 +75,7 @@
   .tip::before { content: "?"; }
   .tip:hover, .tip:focus-visible { color: var(--text); box-shadow: var(--ring-hover); outline: none; }
   .tip:hover::after, .tip:focus::after {
-    content: attr(data-tip); position: absolute; z-index: 1; left: 0; right: 0; top: calc(100% + 6px);
+    content: attr(data-tip); text-transform: none; letter-spacing: normal; position: absolute; z-index: 1; left: 0; right: 0; top: calc(100% + 6px);
     padding: 10px 12px; background: #141414; border-radius: 8px; color: var(--text); font-size: 12px; font-weight: 400; line-height: 1.5;
     box-shadow: var(--ring), 0 12px 32px oklch(0 0 0 / 0.6);
   }
@@ -90,8 +92,11 @@
   .stats div { background: var(--raised); box-shadow: var(--ring); border-radius: 8px; padding: 8px 10px; }
   .stats b { display: block; font-size: 16px; font-weight: 600; }
   .stats span { color: var(--dim); font-size: 11px; }
-  .legend { display: flex; gap: 14px; margin-top: 10px; font-size: 12px; }
-  .legend span { color: var(--dim); }
+  .legend > span:not(.tip) { display: inline-flex; align-items: center; gap: 5px; }
+  .legend svg { width: 14px; height: 14px; color: var(--text); }
+  .legend { position: relative; display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 12px; }
+  h2.head { position: relative; height: auto; margin-bottom: 12px; }
+  .legend > span:not(.tip) { color: var(--dim); }
 
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   td, th { text-align: left; white-space: nowrap; padding: 6px 4px; border-bottom: 1px solid var(--hair); }
@@ -150,17 +155,22 @@
 
 <div class="col right">
 <section class="card network">
-  <h2>Network</h2>
+  <h2 class="head">Network <span class="tip" tabindex="0" data-tip="Round: how many steps the network has taken. Frames: every hand-off from one device to a neighbor so far, the network's total airtime. Lost: frames the air dropped. In flight: frames still on their way, when extra delay is on."></span></h2>
   <div class="stats">
     <div><b id="sRound">0</b><span>round</span></div>
     <div><b id="sFrames">0</b><span>frames</span></div>
     <div><b id="sLost">0</b><span>lost</span></div>
     <div><b id="sAir">0</b><span>in flight</span></div>
   </div>
-  <p class="legend"><span>● message</span><span>○ receipt</span><span>· control</span></p>
+  <div class="legend">
+    <span><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="currentColor"/></svg>message</span>
+    <span><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5 5.5 11 12 3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>receipt</span>
+    <span><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="2.5" fill="#6b6b6b"/></svg>control</span>
+    <span><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="var(--bad)" stroke-width="1.8" stroke-linecap="round"/></svg>lost</span>
+    <span class="tip" tabindex="0" data-tip="What moves on the map. A dot is a message being carried toward its recipient; each message has its own color. A check mark in the same color is the recipient's receipt travelling back, which is how the sender learns it was delivered. A small grey dot is the engine's own housekeeping between neighbors, not tied to any message you sent. A red cross is a frame the air lost."></span></div>
 
   <h2>Messages</h2>
-  <table><thead><tr><th>route</th><th>status</th><th title="Frames this message and its receipt cost">frames</th><th title="Devices that carried it on the way">relays</th></tr></thead><tbody id="msgs"></tbody></table>
+  <div class="msgs"><table><thead><tr><th>route</th><th>status</th><th title="Frames this message and its receipt cost">frames</th><th title="Devices that carried it on the way">relays</th></tr></thead><tbody id="msgs"></tbody></table></div>
 </section>
 
 <section class="card log">
@@ -385,7 +395,14 @@ function draw(now) {
     }
     ctx.beginPath();
     if (f.kind === 'control') { ctx.arc(x, y, 2.5, 0, 7); ctx.fillStyle = '#6b6b6b'; ctx.fill(); }
-    else if (f.kind === 'receipt') { ctx.arc(x, y, 4.5, 0, 7); ctx.strokeStyle = `hsl(${f.hue} 80% 65%)`; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1.5; }
+    else if (f.kind === 'receipt') {
+      // A check mark: the recipient saying "got it". Outlined in black so it reads over a lit link.
+      ctx.moveTo(x - 6.5, y); ctx.lineTo(x - 2, y + 4.5); ctx.lineTo(x + 7, y - 5);
+      ctx.lineCap = ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 6.5; ctx.stroke();
+      ctx.strokeStyle = `hsl(${f.hue} 80% 65%)`; ctx.lineWidth = 3; ctx.stroke();
+      ctx.lineWidth = 1.5; ctx.lineCap = ctx.lineJoin = 'butt';
+    }
     else { ctx.arc(x, y, 5.5, 0, 7); ctx.fillStyle = `hsl(${f.hue} 80% 60%)`; ctx.fill(); }
   }
   ctx.font = '500 11px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'center';
