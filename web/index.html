@@ -28,22 +28,30 @@
   .card > h2:first-child { margin-top: 0; }
   .card.network { max-height: 60%; overflow-y: auto; }
   h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; }
-  h2 { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 22px 0 10px; }
+  h2 { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 24px 0 12px; }
   p { margin: 0 0 8px; color: var(--dim); text-wrap: pretty; }
   .help { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; margin: 14px 0 0; font-size: 12px; color: var(--dim); }
   .help kbd { justify-self: start; }
   kbd { background: var(--raised); box-shadow: var(--ring); border-radius: 4px; padding: 1px 5px; font: inherit; font-size: 11px; color: var(--text); }
 
-  label { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 6px; margin-bottom: 12px; }
-  label input[type=range] { grid-column: 1 / -1; width: 100%; margin: 4px 0 0; }
-  label output { grid-column: 3; color: var(--dim); }
+  /* Every control is a field: a head line (name, tip, value) over the control. */
+  .field { position: relative; display: block; margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .head { display: flex; align-items: center; gap: 6px; height: 18px; margin-bottom: 8px; }
+  .head output { margin-left: auto; color: var(--dim); }
+  .field input[type=range] { display: block; width: 100%; margin: 0; }
   output, .stats b, table { font-variant-numeric: tabular-nums; }
   input[type=range] { accent-color: #fff; height: 16px; cursor: pointer; }
 
-  .row { position: relative; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .row { display: flex; align-items: center; gap: 6px; }
+  .row + .row { margin-top: 6px; }
+  .row > * { flex: 1; min-width: 0; }
+  .row > .arrow { flex: none; }
+  .row > #count { flex: none; width: 56px; }
+  .row > #sendBtn { flex: none; }
   button {
     background: var(--raised); color: var(--text); border: 0; box-shadow: var(--ring); border-radius: 8px;
-    padding: 0 12px; min-height: 32px; font: inherit; font-weight: 500; cursor: pointer;
+    padding: 0 12px; height: 34px; font: inherit; font-weight: 500; cursor: pointer;
     transition-property: background-color, box-shadow, scale; transition-duration: 150ms; transition-timing-function: ease-out;
   }
   button:hover { background: var(--raised-hover); box-shadow: var(--ring-hover); }
@@ -53,15 +61,15 @@
   button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid oklch(1 0 0 / 0.5); outline-offset: 2px; }
   input[type=text], input[type=number], select {
     background: #000; color: var(--text); border: 1px solid oklch(1 0 0 / 0.1); border-radius: 8px;
-    min-height: 32px; padding: 0 10px; font: inherit; transition: border-color 150ms ease-out;
+    height: 34px; padding: 0 10px; font: inherit; transition: border-color 150ms ease-out;
   }
   input[type=text]:hover, input[type=number]:hover, select:hover { border-color: oklch(1 0 0 / 0.18); }
-  input[type=number] { width: 56px; padding-right: 4px; }
-  select { flex: 1; min-width: 0; cursor: pointer; }
+  input[type=number] { padding-right: 4px; }
+  input[type=text] { width: 100%; }
+  select { cursor: pointer; }
   .arrow { color: var(--faint); }
 
   .tip { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; box-shadow: var(--ring); color: var(--faint); font-size: 10px; font-weight: 600; cursor: help; transition: color 150ms ease-out, box-shadow 150ms ease-out; }
-  .row .tip { margin-left: auto; }
   .tip::before { content: "?"; }
   .tip:hover, .tip:focus-visible { color: var(--text); box-shadow: var(--ring-hover); outline: none; }
   .tip:hover::after, .tip:focus::after {
@@ -70,12 +78,13 @@
     box-shadow: var(--ring), 0 12px 32px oklch(0 0 0 / 0.6);
   }
 
-  details { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--hair); }
-  summary { cursor: pointer; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin-bottom: 12px; list-style: none; transition: color 150ms ease-out; }
+  details { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--hair); }
+  summary { cursor: pointer; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); list-style: none; transition: color 150ms ease-out; }
   summary::-webkit-details-marker { display: none; }
   summary::before { content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 9px 2px 1px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; rotate: -45deg; transition: rotate 150ms ease-out; }
   details[open] summary::before { rotate: 45deg; }
   summary:hover { color: var(--text); }
+  details[open] summary { margin-bottom: 14px; }
 
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .stats div { background: var(--raised); box-shadow: var(--ring); border-radius: 8px; padding: 8px 10px; }
@@ -110,38 +119,31 @@
 
 <section class="card controls">
   <h2>Devices</h2>
-  <div class="row">
-    <button id="scatter">Scatter</button><input id="count" type="number" min="2" max="60" value="20" aria-label="How many devices to scatter">
-    <button id="clear">Clear</button>
-    <span class="tip" tabindex="0" data-tip="Scatter replaces the map with this many devices dropped at random. Clear removes every device. You can also double-click the map to add one, drag to move it, and right-click to remove it."></span>
+  <div class="field"><div class="head">Crowd <span class="tip" tabindex="0" data-tip="Scatter replaces the map with this many devices dropped at random. Clear removes every device. You can also double-click the map to add one, drag to move it, and right-click to remove it."></span></div>
+    <div class="row"><button id="scatter">Scatter</button><input id="count" type="number" min="2" max="60" value="20" aria-label="How many devices to scatter"><button id="clear">Clear</button></div>
   </div>
-  <label>Radio range <span class="tip" tabindex="0" data-tip="How far a device's radio reaches. Two devices closer than this can link. Hover a device to see its range as a dashed circle."></span><output id="rangeOut"></output><input id="range" type="range" min="60" max="400" value="170"></label>
+  <label class="field"><span class="head">Radio range <span class="tip" tabindex="0" data-tip="How far a device's radio reaches. Two devices closer than this can link. Hover a device to see its range as a dashed circle."></span><output id="rangeOut"></output></span><input id="range" type="range" min="60" max="400" value="170"></label>
 
   <h2>Air</h2>
-  <label>Frames lost <span class="tip" tabindex="0" data-tip="The share of frames that never arrive, as on a noisy radio. A lost frame still used airtime. Retries and the other paths through the mesh are what get a message through anyway."></span><output id="lossOut"></output><input id="loss" type="range" min="0" max="90" value="0"></label>
-  <div class="row"><button id="play">Pause</button><button id="step">Step one round</button>
-    <span class="tip" tabindex="0" data-tip="The network moves in rounds: each device handles what it received, and each frame crosses one link. Pause freezes it; Step one round moves it on by exactly one, to follow a message hop by hop. The engine's clock keeps running while paused, so retries that come due fire together when you resume."></span>
+  <label class="field"><span class="head">Frames lost <span class="tip" tabindex="0" data-tip="The share of frames that never arrive, as on a noisy radio. A lost frame still used airtime. Retries and the other paths through the mesh are what get a message through anyway."></span><output id="lossOut"></output></span><input id="loss" type="range" min="0" max="90" value="0"></label>
+  <div class="field"><div class="head">Playback <span class="tip" tabindex="0" data-tip="The network moves in rounds: each device handles what it received, and each frame crosses one link. Pause freezes it; Step one round moves it on by exactly one, to follow a message hop by hop. The engine's clock keeps running while paused, so retries that come due fire together when you resume."></span></div>
+    <div class="row"><button id="play">Pause</button><button id="step">Step one round</button></div>
   </div>
 
   <h2>Send</h2>
-  <div class="row"><input id="text" type="text" value="meet at the north gate" aria-label="Message text" style="flex:1">
-    <span class="tip" tabindex="0" data-tip="What the next message says."></span>
+  <div class="field"><div class="head">Message <span class="tip" tabindex="0" data-tip="What the next message says."></span></div>
+    <input id="text" type="text" value="meet at the north gate" aria-label="Message text">
   </div>
-  <div class="row">
-    <select id="from" aria-label="Sender"></select><span class="arrow">→</span>
-    <select id="to" aria-label="Recipient"></select>
-    <button id="sendBtn" class="primary">Send</button>
-    <span class="tip" tabindex="0" data-tip="Sends from one device to another. The same as clicking the sender on the map, then the recipient."></span>
-  </div>
-  <div class="row"><button id="random">Send between two random devices</button>
-    <span class="tip" tabindex="0" data-tip="Picks a sender and a recipient at random. They may be out of reach of each other, which is worth seeing too."></span>
+  <div class="field"><div class="head">Route <span class="tip" tabindex="0" data-tip="Pick a sender and a recipient, or let it pick two at random. Clicking the sender on the map, then the recipient, does the same. A random pair may be out of reach of each other, which is worth seeing too."></span></div>
+    <div class="row"><select id="from" aria-label="Sender"></select><span class="arrow">→</span><select id="to" aria-label="Recipient"></select><button id="sendBtn" class="primary">Send</button></div>
+    <div class="row"><button id="random">Send between two random devices</button></div>
   </div>
 
   <details>
     <summary>Advanced</summary>
-    <label>Links per device <span class="tip" tabindex="0" data-tip="The most neighbors a device holds at once. A phone over Bluetooth LE manages about 4. Devices nearest each other link first, so lowering this thins the mesh and can cut it into islands."></span><output id="capOut"></output><input id="cap" type="range" min="1" max="9" value="4"></label>
-    <label>Extra delay, up to <span class="tip" tabindex="0" data-tip="Each frame spends a random 0 to this many extra rounds on the air, so copies arrive late and out of order, as on a busy radio."></span><output id="delayOut"></output><input id="delay" type="range" min="0" max="5" value="0"></label>
-    <label>Round length <span class="tip" tabindex="0" data-tip="Real time per round: the playback speed. The engine's own timers (receipt timeouts, retries) run on real time, not rounds, so with longer rounds a retry comes after fewer of them."></span><output id="speedOut"></output><input id="speed" type="range" min="100" max="2000" step="50" value="500"></label>
+  <label class="field"><span class="head">Links per device <span class="tip" tabindex="0" data-tip="The most neighbors a device holds at once. A phone over Bluetooth LE manages about 4. Devices nearest each other link first, so lowering this thins the mesh and can cut it into islands."></span><output id="capOut"></output></span><input id="cap" type="range" min="1" max="9" value="4"></label>
+  <label class="field"><span class="head">Extra delay, up to <span class="tip" tabindex="0" data-tip="Each frame spends a random 0 to this many extra rounds on the air, so copies arrive late and out of order, as on a busy radio."></span><output id="delayOut"></output></span><input id="delay" type="range" min="0" max="5" value="0"></label>
+  <label class="field"><span class="head">Round length <span class="tip" tabindex="0" data-tip="Real time per round: the playback speed. The engine's own timers (receipt timeouts, retries) run on real time, not rounds, so with longer rounds a retry comes after fewer of them."></span><output id="speedOut"></output></span><input id="speed" type="range" min="100" max="2000" step="50" value="500"></label>
   </details>
 </section>
 </div>
