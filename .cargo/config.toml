@@ -1,0 +1,4 @@
+# getrandom 0.3 picks its JavaScript backend only under this cfg, and only the
+# final build can set it.
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg", 'getrandom_backend="wasm_js"']

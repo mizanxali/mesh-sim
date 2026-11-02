@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesh playground</title>
+<style>
+  :root { color-scheme: dark; --bg: #0e1116; --panel: #161b22; --line: #2a313c; --text: #d7dde5; --dim: #8b95a3; --accent: #f2c94c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; height: 100vh; display: flex; background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, sans-serif; }
+  canvas { flex: 1; min-width: 0; display: block; cursor: crosshair; touch-action: none; }
+  aside { width: 340px; overflow-y: auto; padding: 16px; background: var(--panel); border-left: 1px solid var(--line); }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin: 18px 0 8px; }
+  p { margin: 0 0 8px; color: var(--dim); }
+  label { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin-bottom: 10px; }
+  label input[type=range] { grid-column: 1 / -1; width: 100%; }
+  output { font-variant-numeric: tabular-nums; color: var(--text); }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  button { background: #222a35; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; min-height: 32px; }
+  button:hover { border-color: var(--dim); }
+  input[type=text], input[type=number] { background: #0e1116; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
+  input[type=number] { width: 56px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .stats div { background: #0e1116; border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
+  .stats b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .stats span { color: var(--dim); font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  td, th { text-align: left; padding: 3px 4px; border-bottom: 1px solid var(--line); }
+  th { color: var(--dim); font-weight: normal; font-size: 11px; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
+  ol { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; font-size: 12px; }
+  ol li { padding: 2px 0; border-bottom: 1px solid #1d232c; color: var(--dim); }
+  ol li.good { color: #6fcf97; } ol li.bad { color: #eb5757; }
+  .legend span { margin-right: 10px; color: var(--dim); }
+  kbd { background: #0e1116; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font: inherit; color: var(--text); }
+</style>
+</head>
+<body>
+<canvas id="map" aria-label="Mesh map: double-click to add a device, drag to move it, click two devices to send"></canvas>
+<aside>
+  <h1>Mesh playground</h1>
+  <p>Every device here runs the real Offline Protocol engine, compiled to WebAssembly. Nothing about forwarding is faked: you are watching the engine decide who carries what.</p>
+  <p><kbd>Double-click</kbd> add a device · <kbd>Drag</kbd> move it · <kbd>Click</kbd> one device, then another, to send · <kbd>Right-click</kbd> remove</p>
+
+  <h2>Devices</h2>
+  <div class="row">
+    <button id="scatter">Scatter</button><input id="count" type="number" min="2" max="60" value="14" aria-label="How many devices to scatter">
+    <button id="clear">Clear</button>
+  </div>
+  <label>Radio range <output id="rangeOut"></output><input id="range" type="range" min="60" max="400" value="170"></label>
+  <label>Links per device <output id="capOut"></output><input id="cap" type="range" min="1" max="9" value="4"></label>
+
+  <h2>Air</h2>
+  <label>Frames lost <output id="lossOut"></output><input id="loss" type="range" min="0" max="90" value="0"></label>
+  <label>Extra delay, up to <output id="delayOut"></output><input id="delay" type="range" min="0" max="5" value="0"></label>
+  <label>Round length <output id="speedOut"></output><input id="speed" type="range" min="100" max="2000" step="50" value="500"></label>
+  <p>The engine's timers (acknowledgement timeouts, retries) run on real time, so longer rounds mean fewer rounds before a retry fires.</p>
+  <div class="row"><button id="play">Pause</button><button id="step">Step one round</button></div>
+
+  <h2>Send</h2>
+  <div class="row"><input id="text" type="text" value="meet at the north gate" aria-label="Message text" style="flex:1"></div>
+  <div class="row"><button id="random">Send between two random devices</button></div>
+
+  <h2>Network</h2>
+  <div class="stats">
+    <div><b id="sRound">0</b><span>round</span></div>
+    <div><b id="sFrames">0</b><span>frames sent</span></div>
+    <div><b id="sLost">0</b><span>lost</span></div>
+    <div><b id="sAir">0</b><span>on the air</span></div>
+  </div>
+  <p class="legend" style="margin-top:8px"><span>● message</span><span>○ receipt</span><span style="color:#5c6673">• control</span></p>
+
+  <h2>Messages</h2>
+  <table><thead><tr><th>route</th><th>status</th><th title="Frames this message and its receipt cost">frames</th><th title="Devices that carried it on the way">relays</th></tr></thead><tbody id="msgs"></tbody></table>
+
+  <h2>Log</h2>
+  <ol id="log"></ol>
+</aside>
+
+<script type="module">
+import init, { MeshSim } from './pkg/mesh_sim.js';
+await init();
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('map'), ctx = canvas.getContext('2d');
+const sim = new MeshSim((Math.random() * 2 ** 32) >>> 0);
+
+const devices = new Map();          // id -> {x, y, flash}
+let links = new Set();              // "a|b", a < b
+const anims = [];                   // frames being drawn
+const heat = new Map();             // link key -> {hue, t}
+const messages = new Map();         // message id -> stats
+const totals = { frames: 0, lost: 0 };
+let selected = null, hover = null, round = 0, nameIndex = 0;
+const NAMES = 'ana ben cai dev eli fay gus hal ivy jo kai lu max nia oz pia quin rae sol tia uma vic wes xia yan zoe'.split(' ');
+
+const params = () => ({
+  range: +$('range').value, cap: +$('cap').value, loss: +$('loss').value / 100,
+  delay: +$('delay').value, speed: +$('speed').value,
+});
+const key = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+const hueOf = (id) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 360;
+
+function log(text, cls = '') {
+  const li = document.createElement('li');
+  li.textContent = `r${round} · ${text}`;
+  li.className = cls;
+  $('log').prepend(li);
+  while ($('log').children.length > 150) $('log').lastChild.remove();
+}
+
+// Who can hear whom: pairs in range link nearest first until a device holds
+// as many links as it can, the way the SDK's crowd harness lays out phones.
+function relink() {
+  const { range, cap } = params();
+  const ids = [...devices.keys()];
+  const pairs = [];
+  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+    const a = devices.get(ids[i]), b = devices.get(ids[j]);
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (d < range) pairs.push([d, ids[i], ids[j]]);
+  }
+  pairs.sort((p, q) => p[0] - q[0]);
+  const degree = new Map(ids.map((id) => [id, 0]));
+  const next = new Set();
+  for (const [, a, b] of pairs) {
+    if (degree.get(a) >= cap || degree.get(b) >= cap) continue;
+    next.add(key(a, b));
+    degree.set(a, degree.get(a) + 1); degree.set(b, degree.get(b) + 1);
+  }
+  for (const k of links) if (!next.has(k)) sim.unlink(...k.split('|'));
+  for (const k of next) if (!links.has(k)) sim.link(...k.split('|'));
+  links = next;
+}
+
+function addDevice(x, y) {
+  let id;
+  do { id = nameIndex < NAMES.length ? NAMES[nameIndex] : `d${nameIndex + 1}`; nameIndex++; } while (devices.has(id));
+  try { sim.addNode(id); } catch (e) { log(`could not add ${id}: ${e}`, 'bad'); return; }
+  devices.set(id, { x, y, flash: 0 });
+  relink();
+}
+
+function removeDevice(id) {
+  sim.removeNode(id);
+  devices.delete(id);
+  for (const k of [...links]) if (k.split('|').includes(id)) links.delete(k);
+  if (selected === id) selected = null;
+  relink();
+  log(`${id} switched off`);
+}
+
+function clearAll() {
+  for (const id of [...devices.keys()]) { sim.removeNode(id); }
+  devices.clear(); links.clear(); anims.length = 0; heat.clear();
+  selected = null; nameIndex = 0;
+}
+
+function scatter() {
+  clearAll();
+  const n = Math.max(2, Math.min(60, +$('count').value || 14));
+  const { width, height } = canvas.getBoundingClientRect();
+  for (let i = 0; i < n; i++) addDevice(40 + Math.random() * (width - 80), 40 + Math.random() * (height - 80));
+  log(`scattered ${n} devices, ${links.size} links`);
+}
+
+function send(from, to) {
+  const text = $('text').value || 'hello';
+  try {
+    const id = sim.send(from, to, text);
+    messages.set(id, { from, to, text, hue: hueOf(id), status: 'sent', frames: 0, hops: '' });
+    log(`${from} → ${to}: “${text}”`);
+    renderMessages();
+  } catch (e) { log(`${from} could not send: ${e}`, 'bad'); }
+}
+
+function tick() {
+  const r = JSON.parse(sim.step());
+  round = r.round;
+  const now = performance.now(), { speed } = params();
+  for (const f of r.frames) {
+    if (!devices.has(f.from) || !devices.has(f.to)) continue;
+    totals.frames++; if (f.lost) totals.lost++;
+    const msg = messages.get(f.about);
+    if (msg && f.kind !== 'control') {
+      msg.frames++;
+      heat.set(key(f.from, f.to), { hue: msg.hue, t: now });
+    }
+    anims.push({ ...f, hue: msg ? msg.hue : 0, start: now, dur: f.rounds * speed });
+  }
+  for (const d of r.deliveries) {
+    const msg = messages.get(d.id);
+    const dev = devices.get(d.node);
+    if (dev) dev.flash = now;
+    if (msg && msg.status === 'sent') { msg.status = 'received'; msg.hops = d.hops; }
+    log(`${d.node} received “${d.content}” from ${d.from} (relayed ${d.hops} time${d.hops === 1 ? '' : 's'})`, 'good');
+  }
+  for (const { node, event, error } of r.events) {
+    if (error) { log(`${node}: ${error}`, 'bad'); continue; }
+    const msg = messages.get(event.message_id);
+    if (!msg) continue;
+    if (event.type === 'message_delivered') {
+      msg.status = 'confirmed';
+      log(`${node} learned “${msg.text}” was delivered (${event.latency_ms} ms)`, 'good');
+    } else if (event.type === 'message_failed') {
+      msg.status = 'failed';
+      log(`${node} gave up on “${msg.text}”: ${event.reason}`, 'bad');
+    }
+  }
+  $('sRound').textContent = round;
+  $('sFrames').textContent = totals.frames;
+  $('sLost').textContent = totals.lost;
+  $('sAir').textContent = r.inFlight;
+  renderMessages();
+}
+
+const STATUS = { sent: 'travelling', received: 'received, receipt on its way', confirmed: '✓ delivered', failed: '✗ failed' };
+function renderMessages() {
+  $('msgs').innerHTML = '';
+  for (const m of [...messages.values()].reverse().slice(0, 30)) {
+    const tr = document.createElement('tr');
+    const cells = [`${m.from} → ${m.to}`, STATUS[m.status], m.frames, m.hops];
+    cells.forEach((text, i) => {
+      const td = document.createElement('td');
+      if (i === 0) { const s = document.createElement('span'); s.className = 'swatch'; s.style.background = `hsl(${m.hue} 80% 60%)`; td.append(s); }
+      td.append(String(text));
+      tr.append(td);
+    });
+    $('msgs').append(tr);
+  }
+}
+
+let timer = null, playing = true;
+function schedule() { clearTimeout(timer); if (playing) timer = setTimeout(() => { tick(); schedule(); }, params().speed); }
+
+// Drawing.
+function resize() {
+  const dpr = devicePixelRatio || 1, { width, height } = canvas.getBoundingClientRect();
+  canvas.width = width * dpr; canvas.height = height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize);
+
+function draw(now) {
+  const { width, height } = canvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, width, height);
+  const focus = devices.get(hover) || devices.get(selected);
+  if (focus) {
+    ctx.beginPath(); ctx.arc(focus.x, focus.y, params().range, 0, 7);
+    ctx.fillStyle = 'rgba(242,201,76,0.04)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(242,201,76,0.18)'; ctx.setLineDash([4, 6]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  for (const k of links) {
+    const [a, b] = k.split('|').map((id) => devices.get(id));
+    const h = heat.get(k), glow = h ? Math.max(0, 1 - (now - h.t) / 2000) : 0;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    ctx.lineWidth = 1.5 + glow * 3;
+    ctx.strokeStyle = glow ? `hsla(${h.hue},80%,60%,${0.25 + glow * 0.6})` : '#2a313c';
+    ctx.stroke();
+  }
+  ctx.lineWidth = 1.5;
+  for (let i = anims.length - 1; i >= 0; i--) {
+    const f = anims[i], a = devices.get(f.from), b = devices.get(f.to);
+    const p = (now - f.start) / f.dur;
+    if (!a || !b || p > (f.lost ? 1.2 : 1)) { anims.splice(i, 1); continue; }
+    const t = f.lost ? Math.min(p, 0.5) : p;
+    const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
+    if (f.lost && p >= 0.5) {
+      ctx.strokeStyle = `rgba(235,87,87,${1 - (p - 0.5) / 0.7})`;
+      ctx.beginPath(); ctx.moveTo(x - 5, y - 5); ctx.lineTo(x + 5, y + 5); ctx.moveTo(x + 5, y - 5); ctx.lineTo(x - 5, y + 5); ctx.stroke();
+      continue;
+    }
+    ctx.beginPath();
+    if (f.kind === 'control') { ctx.arc(x, y, 2.5, 0, 7); ctx.fillStyle = '#5c6673'; ctx.fill(); }
+    else if (f.kind === 'receipt') { ctx.arc(x, y, 4.5, 0, 7); ctx.strokeStyle = `hsl(${f.hue} 80% 65%)`; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1.5; }
+    else { ctx.arc(x, y, 5.5, 0, 7); ctx.fillStyle = `hsl(${f.hue} 80% 60%)`; ctx.fill(); }
+  }
+  ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+  for (const [id, d] of devices) {
+    const flash = Math.max(0, 1 - (now - d.flash) / 1200);
+    if (flash) { ctx.beginPath(); ctx.arc(d.x, d.y, 14 + flash * 12, 0, 7); ctx.fillStyle = `rgba(111,207,151,${flash * 0.35})`; ctx.fill(); }
+    ctx.beginPath(); ctx.arc(d.x, d.y, 12, 0, 7);
+    ctx.fillStyle = '#1c232d'; ctx.fill();
+    ctx.lineWidth = id === selected ? 3 : 1.5;
+    ctx.strokeStyle = id === selected ? '#f2c94c' : id === hover ? '#8b95a3' : '#4a5563';
+    ctx.stroke();
+    ctx.fillStyle = '#d7dde5'; ctx.fillText(id, d.x, d.y + 27);
+  }
+  requestAnimationFrame(draw);
+}
+
+// Input.
+const at = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+const hit = ({ x, y }) => { for (const [id, d] of devices) if (Math.hypot(d.x - x, d.y - y) < 16) return id; return null; };
+let drag = null;
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  const p = at(e), id = hit(p);
+  drag = { id, x: p.x, y: p.y, moved: false };
+  if (id) canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', (e) => {
+  const p = at(e);
+  hover = hit(p);
+  if (!drag?.id) return;
+  if (Math.hypot(p.x - drag.x, p.y - drag.y) > 4) drag.moved = true;
+  if (drag.moved) { Object.assign(devices.get(drag.id), p); relink(); }
+});
+canvas.addEventListener('pointerup', () => {
+  if (drag && !drag.moved) {
+    if (!drag.id) selected = null;
+    else if (!selected || selected === drag.id) selected = selected === drag.id ? null : drag.id;
+    else { send(selected, drag.id); selected = null; }
+  }
+  drag = null;
+});
+canvas.addEventListener('dblclick', (e) => { const p = at(e); if (!hit(p)) addDevice(p.x, p.y); });
+canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); const id = hit(at(e)); if (id) removeDevice(id); });
+addEventListener('keydown', (e) => {
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selected && document.activeElement === document.body) removeDevice(selected);
+});
+
+// Controls.
+const fmt = {
+  range: (v) => `${v} px`, cap: (v) => (v == 4 ? '4 (a BLE phone)' : v), loss: (v) => `${v}%`,
+  delay: (v) => `${v} round${v == 1 ? '' : 's'}`, speed: (v) => `${v} ms`,
+};
+for (const name of Object.keys(fmt)) {
+  const input = $(name), out = $(`${name}Out`);
+  const update = () => {
+    out.textContent = fmt[name](input.value);
+    if (name === 'range' || name === 'cap') relink();
+    if (name === 'loss' || name === 'delay') { const p = params(); sim.setAir(p.loss, 0, p.delay); }
+  };
+  input.addEventListener('input', update);
+  update();
+}
+$('scatter').onclick = scatter;
+$('clear').onclick = () => { clearAll(); log('cleared'); };
+$('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; schedule(); };
+$('step').onclick = () => tick();
+$('speed').addEventListener('input', schedule);
+$('random').onclick = () => {
+  const ids = [...devices.keys()];
+  if (ids.length < 2) return;
+  const from = ids[Math.floor(Math.random() * ids.length)];
+  let to; do { to = ids[Math.floor(Math.random() * ids.length)]; } while (to === from);
+  send(from, to);
+};
+
+resize();
+scatter();
+schedule();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
