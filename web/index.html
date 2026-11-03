@@ -112,6 +112,8 @@
   /* Help names the gesture for whatever is pointing. */
   .touch { display: none; }
   @media (hover: none) and (pointer: coarse) { .touch { display: inline; } .mouse { display: none; } }
+  /* Likewise for where the panels are: floating cards, or the phone sheet. */
+  .on-sheet { display: none; }
 
   /* Desktop: the sheet is invisible scaffolding and the columns float as cards. */
   .sheet, .sheet-body { display: contents; }
@@ -154,6 +156,7 @@
     .sheet[data-tab="controls"] :is(.card.network, .card.log),
     .sheet[data-tab="network"] :is(.card.intro, .card.controls, .card.log),
     .sheet[data-tab="log"] :is(.card.intro, .card.controls, .card.network) { display: none; }
+    .on-sheet { display: block; } .off-sheet { display: none; }
   }
 
   /* Fingers need bigger targets, and iOS zooms into any field under 16px. */
@@ -165,6 +168,140 @@
     .tip { width: 20px; height: 20px; font-size: 11px; }
     .head { height: 22px; }
     .tabs button { height: 38px; }
+  }
+
+  button.linkish {
+    height: auto; margin-top: 14px; padding: 2px 0; border-radius: 4px; background: none; box-shadow: none;
+    color: var(--dim); font-size: 12px; text-decoration: underline; text-decoration-color: oklch(1 0 0 / 0.25); text-underline-offset: 3px;
+  }
+  button.linkish:hover { background: none; box-shadow: none; color: var(--text); text-decoration-color: currentColor; }
+
+  /* The tour: one card over the dimmed map, a step at a time. */
+  .tour {
+    width: min(440px, 100% - 32px); max-width: none; max-height: calc(100% - 32px); margin: auto; padding: 0; border: 0;
+    border-radius: 24px; color: var(--text); background: oklch(0.12 0 0 / 0.9);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    box-shadow: var(--ring), 0 24px 64px oklch(0 0 0 / 0.6);
+    overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
+  }
+  .tour::backdrop { background: oklch(0 0 0 / 0.55); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+  .tour:focus { outline: none; }
+  .tour[open] { animation: tour-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .tour[open]::backdrop { animation: tour-fade 260ms ease-out; }
+  @keyframes tour-in { from { opacity: 0; translate: 0 10px; scale: 0.98; } }
+  @keyframes tour-fade { from { opacity: 0; } }
+  .tour-inner { padding: 14px 20px 0; }
+  .tour-top { display: flex; align-items: center; justify-content: space-between; margin: 0 -8px 10px 0; }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 6px; height: 6px; border-radius: 3px; background: oklch(1 0 0 / 0.16); transition: width 250ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 250ms ease-out; }
+  .dots i.on { width: 20px; background: var(--text); }
+  button.tour-close { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 50%; background: none; box-shadow: none; color: var(--dim); }
+  button.tour-close:hover { background: var(--raised); color: var(--text); }
+  /* Every step shares one grid cell, so the card is as tall as its longest
+     step and the buttons stay put from step to step. */
+  .steps { display: grid; }
+  .step { grid-area: 1 / 1; min-width: 0; }
+  .step:not(.on) { visibility: hidden; }
+  .step.on { animation: step-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .tour[data-dir="back"] .step.on { animation-name: step-in-back; }
+  @keyframes step-in { from { opacity: 0; translate: 12px 0; } }
+  @keyframes step-in-back { from { opacity: 0; translate: -12px 0; } }
+  .step figure { margin: 0 0 16px; border-radius: 14px; background: #000; box-shadow: var(--ring); overflow: hidden; }
+  .step figure svg { display: block; width: 100%; height: auto; }
+  .step h2 { margin: 0 0 6px; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; text-transform: none; color: var(--text); }
+  .step p:last-child { margin-bottom: 0; }
+  .tour .help { margin: 12px 0; }
+  .tour .legend { flex-wrap: wrap; row-gap: 4px; margin: 12px 0 10px; }
+  .tour .legend svg { color: hsl(200 80% 62%); }
+  .dials { display: grid; gap: 8px; margin: 12px 0; }
+  .dials b { display: block; font-weight: 500; }
+  .dials span { color: var(--dim); }
+  .q { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; box-shadow: var(--ring); color: var(--faint); font-size: 10px; font-weight: 600; vertical-align: 1px; }
+  /* Pinned, so the buttons stay in reach when a short screen scrolls the card. */
+  .tour-foot {
+    position: sticky; bottom: 0; display: flex; align-items: center; gap: 8px; margin-top: 20px; padding: 16px 0 20px;
+    border-top: 1px solid var(--hair); background: oklch(0.12 0 0);
+  }
+  .tour-foot label { display: flex; align-items: center; gap: 8px; margin-right: auto; color: var(--dim); font-size: 12px; cursor: pointer; user-select: none; -webkit-user-select: none; transition: color 150ms ease-out; }
+  .tour-foot label:hover { color: var(--text); }
+  .tour-foot input { width: 15px; height: 15px; margin: 0; accent-color: #fff; cursor: pointer; }
+  .tour-foot button { min-width: 64px; }
+
+  /* The figures: small copies of the map, drawn the way the canvas draws it. */
+  .f-links { fill: none; stroke: oklch(1 0 0 / 0.14); stroke-width: 1.5; }
+  .f-nodes circle, .f-node { fill: #111; stroke: #4d4d4d; stroke-width: 1.5; }
+  .f-node.sel { stroke: var(--accent); stroke-width: 2.5; }
+  .f-range { fill: rgb(242 201 76 / 0.05); stroke: rgb(242 201 76 / 0.28); stroke-dasharray: 4 6; }
+  .f-label { fill: #8f8f8f; font: 500 10px system-ui, -apple-system, sans-serif; text-anchor: middle; }
+  .f-msg { fill: hsl(200 80% 60%); }
+  .f-glow { fill: none; stroke: hsl(200 80% 60%); stroke-width: 3; }
+  .f-rcpt { fill: none; stroke: hsl(200 80% 65%); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .f-rcpt.under { stroke: #000; stroke-width: 6.5; }
+  .f-got { fill: rgb(111 207 151); }
+  .f-tap { fill: none; stroke: #fff; stroke-width: 1.5; }
+  .f-lost { fill: none; stroke: var(--bad); stroke-width: 2; stroke-linecap: round; }
+  .f-got, .f-tap, .add-node { transform-box: fill-box; transform-origin: center; }
+  /* They play from the start whenever their step comes up. Without motion,
+     each rests on one telling moment instead. */
+  @media (prefers-reduced-motion: no-preference) {
+    .step.on .hop-msg { animation: hop-msg 6s ease-in-out infinite; }
+    .step.on .hop-rcpt { animation: hop-rcpt 6s ease-in-out infinite; }
+    .step.on .hop-got { animation: hop-got 6s ease-out infinite; }
+    .step.on .hop-g1 { animation: hop-g1 6s linear infinite; }
+    .step.on .hop-g2 { animation: hop-g2 6s linear infinite; }
+    .step.on .hop-g3 { animation: hop-g3 6s linear infinite; }
+    .step.on .add-tap { animation: add-tap 5s ease-out infinite; }
+    .step.on .add-tap + .add-tap { animation-delay: 0.35s; }
+    .step.on .add-node { animation: add-node 5s ease-out infinite; }
+    .step.on .add-ring { animation: add-ring 5s ease-out infinite; }
+    .step.on .add-links { animation: add-links 5s ease-out infinite; }
+    .step.on .lose-msg { animation: lose-msg 2.6s ease-in infinite; }
+    .step.on .lose-x { animation: lose-x 2.6s linear infinite; }
+  }
+  /* A message hops ana → dev one round at a time; the receipt hops back. */
+  @keyframes hop-msg {
+    0% { transform: translate(40px, 36px); opacity: 1; }
+    12%, 16% { transform: translate(120px, 36px); }
+    28%, 32% { transform: translate(200px, 36px); }
+    44% { transform: translate(280px, 36px); opacity: 1; }
+    45%, 100% { transform: translate(280px, 36px); opacity: 0; }
+  }
+  @keyframes hop-rcpt {
+    0%, 49% { transform: translate(280px, 36px); opacity: 0; }
+    50% { transform: translate(280px, 36px); opacity: 1; }
+    62%, 66% { transform: translate(200px, 36px); }
+    78%, 82% { transform: translate(120px, 36px); }
+    94% { transform: translate(40px, 36px); opacity: 1; }
+    95%, 100% { transform: translate(40px, 36px); opacity: 0; }
+  }
+  @keyframes hop-got { 0%, 43.9% { opacity: 0; transform: scale(2); } 44% { opacity: 0.4; transform: scale(2); } 62%, 100% { opacity: 0; transform: scale(1); } }
+  @keyframes hop-g1 { 0% { opacity: 0.85; } 33%, 82% { opacity: 0; } 82.1% { opacity: 0.85; } 100% { opacity: 0.39; } }
+  @keyframes hop-g2 { 0%, 16% { opacity: 0; } 16.1% { opacity: 0.85; } 49%, 66% { opacity: 0; } 66.1% { opacity: 0.85; } 99%, 100% { opacity: 0; } }
+  @keyframes hop-g3 { 0%, 32% { opacity: 0; } 32.1% { opacity: 0.85; } 50% { opacity: 0.39; } 50.1% { opacity: 0.85; } 83%, 100% { opacity: 0; } }
+  /* A double-tap drops a device that links the two pairs into one mesh. */
+  @keyframes add-tap { 0%, 10% { opacity: 0; transform: scale(1); } 10.1% { opacity: 0.8; } 22%, 100% { opacity: 0; transform: scale(3); } }
+  @keyframes add-node {
+    0%, 28% { transform: scale(0); opacity: 1; animation-timing-function: cubic-bezier(0.3, 1.6, 0.6, 1); }
+    36%, 88% { transform: scale(1); opacity: 1; }
+    96%, 100% { transform: scale(1); opacity: 0; }
+  }
+  @keyframes add-ring { 0%, 32% { opacity: 0; } 40%, 70% { opacity: 1; } 82%, 100% { opacity: 0; } }
+  @keyframes add-links { 0%, 34% { opacity: 0; } 42%, 88% { opacity: 1; } 96%, 100% { opacity: 0; } }
+  /* A frame dies halfway across a link. */
+  @keyframes lose-msg { 0% { transform: translate(216px, 60px); opacity: 1; } 30% { transform: translate(250px, 61px); opacity: 1; } 30.1%, 100% { transform: translate(250px, 61px); opacity: 0; } }
+  @keyframes lose-x { 0%, 30% { opacity: 0; } 30.1% { opacity: 1; } 75%, 100% { opacity: 0; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tour[open], .tour[open]::backdrop, .step.on { animation: none; }
+    .dots i { transition: none; }
+  }
+  /* A phone on its side has no room for pictures. */
+  @media (max-height: 480px) { .step figure { display: none; } }
+  @media (pointer: coarse) {
+    button.tour-close { width: 40px; height: 40px; }
+    .tour-foot label { min-height: 42px; font-size: 13px; }
+    .tour-foot input { width: 20px; height: 20px; }
+    button.linkish { padding: 8px 0; margin-top: 8px; }
   }
 </style>
 </head>
@@ -193,6 +330,7 @@
     <kbd><span class="mouse">Click</span><span class="touch">Tap</span></kbd><span>a device, then another, to send</span>
     <kbd><span class="mouse">Right-click</span><span class="touch">Long-press</span></kbd><span>remove a device</span>
   </div>
+  <button class="linkish" id="tourOpen" type="button" aria-haspopup="dialog">How it works</button>
 </section>
 
 <section class="card controls">
@@ -254,6 +392,148 @@
 </div>
 </div>
 </div>
+
+<!-- The tour: what this is and how to drive it. It opens on every load until
+     "Don't show again" is ticked; "How it works" brings it back. -->
+<dialog class="tour" id="tour" tabindex="-1" aria-label="How the mesh playground works">
+<div class="tour-inner">
+  <div class="tour-top">
+    <div class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
+    <button class="tour-close" id="tourClose" type="button" aria-label="Close"><svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+  </div>
+  <div class="steps" aria-live="polite">
+    <section class="step on" aria-labelledby="tour1">
+      <figure aria-hidden="true"><svg viewBox="0 0 320 88">
+        <circle class="f-range" cx="176" cy="44" r="82"/>
+        <path class="f-links" d="M36 50 102 26M36 50 116 66M102 26 116 66M102 26 176 44M116 66 176 44M176 44 238 22M176 44 250 64M238 22 250 64M238 22 292 46M250 64 292 46"/>
+        <g class="f-nodes"><circle cx="36" cy="50" r="8"/><circle cx="102" cy="26" r="8"/><circle cx="116" cy="66" r="8"/><circle cx="238" cy="22" r="8"/><circle cx="250" cy="64" r="8"/><circle cx="292" cy="46" r="8"/></g>
+        <circle class="f-node sel" cx="176" cy="44" r="8"/>
+      </svg></figure>
+      <h2 id="tour1">Welcome to the mesh playground</h2>
+      <p>Each circle is a device, like a phone with no signal and no Wi&#8209;Fi. It can only reach the devices inside its radio range (the dashed ring), so a message crosses the crowd by being passed from device to device.</p>
+      <p>Every device runs the real Offline Protocol engine, compiled to WebAssembly. Nothing about forwarding is faked: you are watching the engine decide who carries what.</p>
+    </section>
+
+    <section class="step" aria-labelledby="tour2">
+      <figure aria-hidden="true"><svg viewBox="0 0 320 88">
+        <path class="f-links" d="M40 36H280"/>
+        <path class="f-glow hop-g1" d="M40 36H120" opacity="0.4"/>
+        <path class="f-glow hop-g2" d="M120 36H200" opacity="0.85"/>
+        <path class="f-glow hop-g3" d="M200 36H280" opacity="0"/>
+        <circle class="f-got hop-got" cx="280" cy="36" r="13" opacity="0"/>
+        <circle class="f-msg hop-msg" r="5" transform="translate(160 36)"/>
+        <g class="hop-rcpt" transform="translate(240 36)" opacity="0"><path class="f-rcpt under" d="M-5.5 0-1.5 4 6-4.5"/><path class="f-rcpt" d="M-5.5 0-1.5 4 6-4.5"/></g>
+        <g class="f-nodes"><circle cx="40" cy="36" r="8"/><circle cx="120" cy="36" r="8"/><circle cx="200" cy="36" r="8"/><circle cx="280" cy="36" r="8"/></g>
+        <g class="f-label"><text x="40" y="62">ana</text><text x="120" y="62">ben</text><text x="200" y="62">cai</text><text x="280" y="62">dev</text></g>
+      </svg></figure>
+      <h2 id="tour2">How a message gets through</h2>
+      <p>Send a message and it floods out: every device that hears it hands a copy on to its neighbors, one hop per round, until it reaches the recipient. The recipient then sends a receipt back, which is how the sender learns it was delivered.</p>
+      <div class="legend">
+        <span><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="currentColor"/></svg>message</span>
+        <span><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5 5.5 11 12 3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>receipt</span>
+        <span><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="2.5" fill="#6b6b6b"/></svg>control</span>
+        <span><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="var(--bad)" stroke-width="1.8" stroke-linecap="round"/></svg>lost</span>
+      </div>
+      <p>Small grey dots are the engine's own housekeeping between neighbors. A red cross is a frame the air lost.</p>
+    </section>
+
+    <section class="step" aria-labelledby="tour3">
+      <figure aria-hidden="true"><svg viewBox="0 0 320 88">
+        <path class="f-links" d="M52 34 96 64M236 30 272 64"/>
+        <circle class="f-range add-ring" cx="164" cy="46" r="80"/>
+        <path class="f-links add-links" d="M96 64 164 46 236 30"/>
+        <circle class="f-tap add-tap" cx="164" cy="46" r="7" opacity="0"/>
+        <circle class="f-tap add-tap" cx="164" cy="46" r="7" opacity="0"/>
+        <g class="f-nodes"><circle cx="52" cy="34" r="8"/><circle cx="96" cy="64" r="8"/><circle cx="236" cy="30" r="8"/><circle cx="272" cy="64" r="8"/></g>
+        <circle class="f-node add-node" cx="164" cy="46" r="8"/>
+      </svg></figure>
+      <h2 id="tour3">Try it yourself</h2>
+      <div class="help">
+        <kbd><span class="mouse">Double-click</span><span class="touch">Double-tap</span></kbd><span>add a device</span>
+        <kbd>Drag</kbd><span>move it</span>
+        <kbd><span class="mouse">Click</span><span class="touch">Tap</span></kbd><span>a device, then another, to send</span>
+        <kbd><span class="mouse">Right-click</span><span class="touch">Long-press</span></kbd><span>remove a device</span>
+      </div>
+      <p class="off-sheet">Or pick a sender and recipient under Send, on the left. The Network panel on the right follows every message to the end.</p>
+      <p class="on-sheet">The controls, the network and the log live in the sheet at the bottom: drag it up, or tap a tab.</p>
+    </section>
+
+    <section class="step" aria-labelledby="tour4">
+      <figure aria-hidden="true"><svg viewBox="0 0 320 88">
+        <path class="f-links" d="M40 30 90 62M40 30 112 24M90 62 112 24M216 60 258 26M216 60 284 62M258 26 284 62"/>
+        <circle class="f-msg lose-msg" r="5" transform="translate(250 61)" opacity="0"/>
+        <path class="f-lost lose-x" d="M-4.5-4.5 4.5 4.5M4.5-4.5-4.5 4.5" transform="translate(250 61)"/>
+        <g class="f-nodes"><circle cx="40" cy="30" r="8"/><circle cx="90" cy="62" r="8"/><circle cx="112" cy="24" r="8"/><circle cx="216" cy="60" r="8"/><circle cx="258" cy="26" r="8"/><circle cx="284" cy="62" r="8"/></g>
+      </svg></figure>
+      <h2 id="tour4">Now try to break it</h2>
+      <div class="dials">
+        <div><b>Radio range</b><span>Shrink it and the mesh splits into islands no message can cross.</span></div>
+        <div><b>Frames lost</b><span>Make the air noisy and watch retries get messages through anyway.</span></div>
+        <div><b>Pause, Step one round</b><span>Follow a message one hop at a time.</span></div>
+      </div>
+      <p>Every control has a <span class="q" aria-hidden="true">?</span> beside it that says more.</p>
+    </section>
+  </div>
+  <div class="tour-foot">
+    <label><input type="checkbox" id="tourHide"> Don't show again</label>
+    <button id="tourBack" type="button" hidden>Back</button>
+    <button id="tourNext" type="button" class="primary">Next</button>
+  </div>
+</div>
+</dialog>
+<!-- Not part of the module below, so the tour is up before the engine has loaded. -->
+<script>
+(() => {
+  const KEY = 'mesh-sim.tour-hidden';
+  const $ = (id) => document.getElementById(id);
+  const tour = $('tour'), steps = [...tour.querySelectorAll('.step')], dots = [...tour.querySelectorAll('.dots i')];
+  const back = $('tourBack'), next = $('tourNext'), hide = $('tourHide');
+  let at = 0;
+  // Storage can be missing or refuse (a private window, blocked site data);
+  // then the tour simply shows on every visit.
+  const hidden = () => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } };
+  hide.addEventListener('change', () => {
+    try { if (hide.checked) localStorage.setItem(KEY, '1'); else localStorage.removeItem(KEY); } catch {}
+  });
+
+  function show(i) {
+    if (i < 0 || i >= steps.length) return;
+    tour.dataset.dir = i < at ? 'back' : 'forward';
+    at = i;
+    steps.forEach((s, j) => s.classList.toggle('on', j === i));
+    dots.forEach((d, j) => d.classList.toggle('on', j === i));
+    // Back vanishes on the first step; don't let focus vanish with it.
+    if (i === 0 && document.activeElement === back) next.focus();
+    back.hidden = i === 0;
+    next.textContent = i === steps.length - 1 ? 'Done' : 'Next';
+  }
+  function open() {
+    at = 0; show(0);
+    hide.checked = hidden();
+    tour.showModal();
+    // Focus the card, not Next: a ring on Next at page load reads as stuck.
+    // Enter and the arrow keys still drive it from here.
+    tour.focus();
+  }
+
+  next.onclick = () => (at === steps.length - 1 ? tour.close() : show(at + 1));
+  back.onclick = () => show(at - 1);
+  $('tourClose').onclick = () => tour.close();
+  $('tourOpen').onclick = open;
+  tour.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') show(at + 1);
+    else if (e.key === 'ArrowLeft') show(at - 1);
+    else if (e.key === 'Enter' && e.target === tour) next.click();
+  });
+  // A click on the dimmed map closes it, unless the press began on the card
+  // (a text selection dragged off its edge, say).
+  let pressedOutside = false;
+  tour.addEventListener('pointerdown', (e) => { pressedOutside = e.target === tour; });
+  tour.addEventListener('click', (e) => { if (e.target === tour && pressedOutside) tour.close(); });
+
+  if (!hidden()) open();
+})();
+</script>
 
 <script type="module">
 import init, { MeshSim } from './pkg/mesh_sim.js';

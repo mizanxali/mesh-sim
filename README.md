@@ -12,6 +12,8 @@ unless the air loses or delays it.
 - Radio range, links per device (4 is what a BLE phone holds), frame loss, delay and round length are live
 - On a phone: **double-tap** to add, **long-press** to remove, and the panels live in a bottom sheet
   (drag or flick its handle; tap a tab to open it, tap it again to fold it away)
+- A four-step tour opens on every load until "Don't show again" is ticked (kept in `localStorage`);
+  **How it works** in the intro card brings it back
 
 ## Build
 
