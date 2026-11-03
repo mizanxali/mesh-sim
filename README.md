@@ -10,6 +10,8 @@ unless the air loses or delays it.
 - **Double-click** to add a device, **drag** to move it, **right-click** to remove it
 - **Click** a device, then another, to send a message, and watch it flood out and the receipt come back
 - Radio range, links per device (4 is what a BLE phone holds), frame loss, delay and round length are live
+- On a phone: **double-tap** to add, **long-press** to remove, and the panels live in a bottom sheet
+  (drag or flick its handle; tap a tab to open it, tap it again to fold it away)
 
 ## Build
 

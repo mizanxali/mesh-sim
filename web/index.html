@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
 <title>Mesh playground</title>
 <style>
   :root {
@@ -12,8 +13,9 @@
     --text: #ededed; --dim: #8f8f8f; --faint: #5a5a5a; --accent: #f2c94c; --good: #6fcf97; --bad: #eb5757;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font: 13px/1.5 system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
-  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; }
+  html, body { overscroll-behavior: none; }
+  body { margin: 0; height: 100vh; height: 100dvh; overflow: hidden; -webkit-tap-highlight-color: transparent; background: var(--bg); color: var(--text); font: 13px/1.5 system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   /* Cards float over the map; the columns let clicks through between them. */
   .col { position: fixed; top: 16px; bottom: 16px; width: 316px; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
   .col.left { left: 16px; } .col.right { right: 16px; }
@@ -106,28 +108,99 @@
   ol { list-style: none; margin: 0; padding: 0; font-size: 12px; scrollbar-width: thin; scrollbar-color: #2a2a2a transparent; }
   ol li { padding: 4px 0; border-bottom: 1px solid oklch(1 0 0 / 0.05); color: var(--dim); }
   ol li.good { color: var(--good); } ol li.bad { color: var(--bad); }
+
+  /* Help names the gesture for whatever is pointing. */
+  .touch { display: none; }
+  @media (hover: none) and (pointer: coarse) { .touch { display: inline; } .mouse { display: none; } }
+
+  /* Desktop: the sheet is invisible scaffolding and the columns float as cards. */
+  .sheet, .sheet-body { display: contents; }
+  .sheet-head { display: none; }
+
+  /* Phone: one bottom sheet with tabs. Keep this query in step with SHEET_QUERY in the script. */
+  @media (max-width: 760px), (max-height: 520px) and (pointer: coarse) {
+    body { font-size: 14px; }
+    .sheet {
+      display: flex; flex-direction: column; position: fixed; z-index: 5; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 560px;
+      height: calc(var(--h, 92px) + env(safe-area-inset-bottom)); max-height: calc(100% - env(safe-area-inset-top) - 24px);
+      padding-bottom: env(safe-area-inset-bottom); border-radius: 20px 20px 0 0;
+      background: oklch(0.12 0 0 / 0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      box-shadow: var(--ring), 0 -12px 40px oklch(0 0 0 / 0.5);
+      transition: height 320ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .sheet.dragging { transition: none; }
+    .sheet-head { display: block; flex: none; padding: 0 12px 12px; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+    .sheet.dragging .sheet-head { cursor: grabbing; }
+    .grabber { display: block; width: 72px; height: 22px; margin: 0 auto 2px; padding: 0; background: none; box-shadow: none; border-radius: 6px; }
+    .grabber::before { content: ""; display: block; width: 36px; height: 5px; margin: 0 auto; border-radius: 3px; background: oklch(1 0 0 / 0.22); transition: background-color 150ms ease-out; }
+    .grabber:hover { background: none; box-shadow: none; } .grabber:hover::before { background: oklch(1 0 0 / 0.4); }
+    .grabber:active { scale: 1; }
+    .tabs { display: flex; gap: 2px; padding: 3px; border-radius: 11px; background: var(--raised); box-shadow: var(--ring); }
+    .tabs button { flex: 1; height: 36px; background: none; box-shadow: none; color: var(--dim); }
+    .tabs button:hover { background: var(--raised); box-shadow: none; }
+    .tabs button[aria-selected="true"] { background: oklch(1 0 0 / 0.12); color: var(--text); box-shadow: var(--ring); }
+    .sheet-body { display: block; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #2a2a2a transparent; }
+    .sheet[data-state="peek"] .sheet-body { visibility: hidden; }
+
+    /* The columns dissolve and the cards turn into flat sections of the sheet. */
+    .col { display: contents; }
+    .card, .card.network, .card.log {
+      overflow: visible; min-height: 0; padding: 8px 16px 20px; border-radius: 0;
+      background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    .card.intro + .card.controls { padding-top: 4px; border-top: 1px solid var(--hair); margin: 0 16px; padding-left: 0; padding-right: 0; }
+    .card.intro + .card.controls > h2:first-child { margin-top: 20px; }
+    .msgs { max-height: none; overflow: visible; }
+    .sheet[data-tab="controls"] :is(.card.network, .card.log),
+    .sheet[data-tab="network"] :is(.card.intro, .card.controls, .card.log),
+    .sheet[data-tab="log"] :is(.card.intro, .card.controls, .card.network) { display: none; }
+  }
+
+  /* Fingers need bigger targets, and iOS zooms into any field under 16px. */
+  @media (pointer: coarse) {
+    button, input[type=text], input[type=number], select { height: 42px; }
+    input[type=text], input[type=number], select { font-size: 16px; }
+    input[type=range] { height: 28px; }
+    .row > #count { width: 64px; }
+    .tip { width: 20px; height: 20px; font-size: 11px; }
+    .head { height: 22px; }
+    .tabs button { height: 38px; }
+  }
 </style>
 </head>
 <body>
-<canvas id="map" aria-label="Mesh map: double-click to add a device, drag to move it, click two devices to send"></canvas>
+<canvas id="map" aria-label="Mesh map: double-click or double-tap to add a device, drag to move it, click two devices to send"></canvas>
+<!-- On a desktop the sheet and its body vanish (display: contents) and the
+     columns float as cards. On a phone they become one bottom sheet. -->
+<div id="safeTop" aria-hidden="true" style="position: fixed; top: 0; height: env(safe-area-inset-top); visibility: hidden; pointer-events: none"></div>
+<div class="sheet" id="sheet" data-tab="controls" data-state="peek">
+<div class="sheet-head" id="sheetHead">
+  <button class="grabber" id="grabber" aria-label="Expand panel" aria-controls="sheetBody"></button>
+  <div class="tabs" role="tablist" aria-label="Panels">
+    <button role="tab" data-tab="controls" aria-selected="true">Controls</button>
+    <button role="tab" data-tab="network" aria-selected="false">Network</button>
+    <button role="tab" data-tab="log" aria-selected="false">Log</button>
+  </div>
+</div>
+<div class="sheet-body" id="sheetBody">
 <div class="col left">
 <section class="card intro">
   <h1>Mesh playground</h1>
   <p>Every device here runs the real Offline Protocol engine, compiled to WebAssembly. Nothing about forwarding is faked: you are watching the engine decide who carries what.</p>
   <div class="help">
-    <kbd>Double-click</kbd><span>add a device</span>
+    <kbd><span class="mouse">Double-click</span><span class="touch">Double-tap</span></kbd><span>add a device</span>
     <kbd>Drag</kbd><span>move it</span>
-    <kbd>Click</kbd><span>a device, then another, to send</span>
-    <kbd>Right-click</kbd><span>remove a device</span>
+    <kbd><span class="mouse">Click</span><span class="touch">Tap</span></kbd><span>a device, then another, to send</span>
+    <kbd><span class="mouse">Right-click</span><span class="touch">Long-press</span></kbd><span>remove a device</span>
   </div>
 </section>
 
 <section class="card controls">
   <h2>Devices</h2>
-  <div class="field"><div class="head">Crowd <span class="tip" tabindex="0" data-tip="Scatter replaces the map with this many devices dropped at random. Clear removes every device. You can also double-click the map to add one, drag to move it, and right-click to remove it."></span></div>
+  <div class="field"><div class="head">Crowd <span class="tip" tabindex="0" data-tip="Scatter replaces the map with this many devices dropped at random. Clear removes every device. You can also double-click (or double-tap) the map to add one, drag to move it, and right-click (or long-press) to remove it."></span></div>
     <div class="row"><button id="scatter">Scatter</button><input id="count" type="number" min="2" max="60" value="20" aria-label="How many devices to scatter"><button id="clear">Clear</button></div>
   </div>
-  <label class="field"><span class="head">Radio range <span class="tip" tabindex="0" data-tip="How far a device's radio reaches. Two devices closer than this can link. Hover a device to see its range as a dashed circle."></span><output id="rangeOut"></output></span><input id="range" type="range" min="60" max="400" value="170"></label>
+  <label class="field"><span class="head">Radio range <span class="tip" tabindex="0" data-tip="How far a device's radio reaches. Two devices closer than this can link. Hover or select a device to see its range as a dashed circle."></span><output id="rangeOut"></output></span><input id="range" type="range" min="60" max="400" value="170"></label>
 
   <h2>Air</h2>
   <label class="field"><span class="head">Frames lost <span class="tip" tabindex="0" data-tip="The share of frames that never arrive, as on a noisy radio. A lost frame still used airtime. Retries and the other paths through the mesh are what get a message through anyway."></span><output id="lossOut"></output></span><input id="loss" type="range" min="0" max="90" value="0"></label>
@@ -178,6 +251,8 @@
   <h2>Log</h2>
   <ol id="log"></ol>
 </section>
+</div>
+</div>
 </div>
 
 <script type="module">
@@ -274,17 +349,24 @@ function clearAll() {
 function scatter() {
   clearAll();
   const n = Math.max(2, Math.min(60, +$('count').value || 20));
-  const { width, height } = canvas.getBoundingClientRect();
-  const left = document.querySelector('.col.left').getBoundingClientRect().right;
-  const right = document.querySelector('.col.right').getBoundingClientRect().left;
-  const open = right - left > 300 ? { x: left, w: right - left } : { x: 0, w: width };
+  const open = openArea();
   // Sized so a device has a few neighbors in range: spread over the whole
   // screen, a crowd on a wide monitor falls apart into islands.
   const side = params().range * Math.sqrt(n * 0.9);
-  const w = Math.min(open.w - 80, side), h = Math.min(height - 80, side);
-  const x0 = open.x + (open.w - w) / 2, y0 = (height - h) / 2;
+  const w = Math.min(open.w - 80, side), h = Math.min(open.h - 80, side);
+  const x0 = open.x + (open.w - w) / 2, y0 = open.y + (open.h - h) / 2;
   for (let i = 0; i < n; i++) addDevice(x0 + Math.random() * w, y0 + Math.random() * h);
   log(`scattered ${n} devices, ${links.size} links`);
+}
+
+// The part of the map no panel covers: between the cards on a desktop, above
+// the folded sheet on a phone.
+function openArea() {
+  const { width, height } = canvas.getBoundingClientRect();
+  if (sheetMode.matches) return { x: 0, y: 16, w: width, h: height - 16 - sheetPeekHeight() };
+  const left = document.querySelector('.col.left').getBoundingClientRect().right;
+  const right = document.querySelector('.col.right').getBoundingClientRect().left;
+  return right - left > 300 ? { x: left, y: 0, w: right - left, h: height } : { x: 0, y: 0, w: width, h: height };
 }
 
 function send(from, to) {
@@ -422,35 +504,143 @@ function draw(now) {
 
 // Input.
 const at = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-const hit = ({ x, y }) => { for (const [id, d] of devices) if (Math.hypot(d.x - x, d.y - y) < 16) return id; return null; };
-let drag = null;
+// A fingertip is wider than a cursor, so touch gets a bigger hit area and
+// more slack before a tap turns into a drag.
+const slop = (e) => (e.pointerType === 'mouse' ? { hit: 16, move: 4 } : { hit: 26, move: 10 });
+const hit = ({ x, y }, r = 16) => {
+  let best = null, bestD = r;
+  for (const [id, d] of devices) { const dist = Math.hypot(d.x - x, d.y - y); if (dist < bestD) { best = id; bestD = dist; } }
+  return best;
+};
+let drag = null, lastTap = null, pointerType = 'mouse';
 canvas.addEventListener('pointerdown', (e) => {
-  if (e.button !== 0) return;
-  const p = at(e), id = hit(p);
-  drag = { id, x: p.x, y: p.y, moved: false };
+  pointerType = e.pointerType;
+  if (e.button !== 0 || drag) return;
+  const p = at(e), id = hit(p, slop(e).hit);
+  drag = { id, x: p.x, y: p.y, moved: false, pointer: e.pointerId };
   if (id) canvas.setPointerCapture(e.pointerId);
+  if (e.pointerType !== 'mouse') {
+    hover = id;
+    // Touch has no right button: holding a device still switches it off.
+    if (id) drag.hold = setTimeout(() => { removeDevice(id); hover = null; drag = null; navigator.vibrate?.(15); }, 550);
+  }
 });
 canvas.addEventListener('pointermove', (e) => {
   const p = at(e);
-  hover = hit(p);
-  if (!drag?.id) return;
-  if (Math.hypot(p.x - drag.x, p.y - drag.y) > 4) drag.moved = true;
+  if (e.pointerType === 'mouse') hover = hit(p);
+  if (!drag?.id || e.pointerId !== drag.pointer) return;
+  if (Math.hypot(p.x - drag.x, p.y - drag.y) > slop(e).move) { drag.moved = true; clearTimeout(drag.hold); }
   if (drag.moved) { Object.assign(devices.get(drag.id), p); relink(); }
 });
-canvas.addEventListener('pointerup', () => {
-  if (drag && !drag.moved) {
-    if (!drag.id) selected = null;
-    else if (selected === drag.id) selected = null;
-    else if (!selected) { selected = drag.id; $('from').value = selected; }
-    else { $('to').value = drag.id; send(selected, drag.id); selected = null; }
+canvas.addEventListener('pointerup', (e) => {
+  if (!drag || e.pointerId !== drag.pointer) return;
+  clearTimeout(drag.hold);
+  if (!drag.moved) {
+    const touch = e.pointerType !== 'mouse', now = performance.now();
+    // Browsers disagree on whether a double-tap is a dblclick, so touch counts its own.
+    if (touch && !drag.id && lastTap && now - lastTap.t < 350 && Math.hypot(drag.x - lastTap.x, drag.y - lastTap.y) < 30) {
+      addDevice(drag.x, drag.y); lastTap = null;
+    } else {
+      if (touch) lastTap = drag.id ? null : { t: now, x: drag.x, y: drag.y };
+      if (!drag.id) selected = null;
+      else if (selected === drag.id) selected = null;
+      else if (!selected) { selected = drag.id; $('from').value = selected; }
+      else { $('to').value = drag.id; send(selected, drag.id); selected = null; }
+    }
   }
+  if (e.pointerType !== 'mouse') hover = null;
   drag = null;
 });
-canvas.addEventListener('dblclick', (e) => { const p = at(e); if (!hit(p)) addDevice(p.x, p.y); });
-canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); const id = hit(at(e)); if (id) removeDevice(id); });
+canvas.addEventListener('pointercancel', () => { clearTimeout(drag?.hold); drag = null; hover = null; });
+canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hover = null; });
+canvas.addEventListener('dblclick', (e) => { if (pointerType !== 'mouse') return; const p = at(e); if (!hit(p)) addDevice(p.x, p.y); });
+// A long-press fires contextmenu on Android; the hold timer already handles touch.
+canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); if (pointerType !== 'mouse') return; const id = hit(at(e)); if (id) removeDevice(id); });
 addEventListener('keydown', (e) => {
   if ((e.key === 'Delete' || e.key === 'Backspace') && selected && document.activeElement === document.body) removeDevice(selected);
 });
+
+// The phone sheet. It rests at one of three heights (peek shows only the
+// tabs) and follows a drag on its head, settling where a flick points.
+const SHEET_QUERY = '(max-width: 760px), (max-height: 520px) and (pointer: coarse)';
+const sheetMode = matchMedia(SHEET_QUERY);
+const sheet = $('sheet'), sheetHead = $('sheetHead'), STATES = ['peek', 'half', 'full'];
+// Heights are of the sheet's content, above the home-indicator inset (its bottom padding).
+const insetBottom = () => parseFloat(getComputedStyle(sheet).paddingBottom) || 0;
+const sheetPeekHeight = () => sheetHead.offsetHeight + insetBottom();
+const sheetHeight = () => sheet.getBoundingClientRect().height - insetBottom();
+const sheetHeights = () => ({
+  peek: sheetHead.offsetHeight,
+  half: Math.round(innerHeight * 0.5),
+  // Matches the sheet's max-height: clear of the notch, with a strip of map showing.
+  full: innerHeight - $('safeTop').offsetHeight - 24 - insetBottom(),
+});
+function setSheet(state) {
+  sheet.dataset.state = state;
+  if (!sheetMode.matches) { sheet.style.removeProperty('--h'); return; }
+  sheet.style.setProperty('--h', `${sheetHeights()[state]}px`);
+  $('grabber').setAttribute('aria-label', state === 'peek' ? 'Expand panel' : 'Collapse panel');
+  $('grabber').setAttribute('aria-expanded', state !== 'peek');
+}
+function setTab(tab) {
+  sheet.dataset.tab = tab;
+  for (const b of sheet.querySelectorAll('[role=tab]')) b.setAttribute('aria-selected', b.dataset.tab === tab);
+  $('sheetBody').scrollTop = 0;
+}
+// After an action whose result plays out on the map, get out of the way.
+const showMap = () => { if (sheetMode.matches) setSheet('peek'); };
+
+let sheetDrag = null, suppressSheetClick = false;
+sheetHead.addEventListener('pointerdown', (e) => {
+  if (!sheetMode.matches || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  suppressSheetClick = false;
+  sheetDrag = { y: e.clientY, h: sheetHeight(), moved: false, samples: [[e.timeStamp, e.clientY]] };
+});
+sheetHead.addEventListener('pointermove', (e) => {
+  if (!sheetDrag) return;
+  const dy = e.clientY - sheetDrag.y;
+  if (!sheetDrag.moved && Math.abs(dy) < 6) return;
+  if (!sheetDrag.moved) { sheetDrag.moved = true; sheet.classList.add('dragging'); sheetHead.setPointerCapture(e.pointerId); }
+  const { peek, full } = sheetHeights();
+  let h = sheetDrag.h - dy;
+  // Rubber-band past the ends instead of stopping dead.
+  if (h < peek) h = peek - (peek - h) / 4; else if (h > full) h = full + (h - full) / 4;
+  sheet.style.setProperty('--h', `${h}px`);
+  sheetDrag.samples.push([e.timeStamp, e.clientY]);
+  if (sheetDrag.samples.length > 5) sheetDrag.samples.shift();
+});
+const endSheetDrag = (e) => {
+  if (!sheetDrag) return;
+  const d = sheetDrag; sheetDrag = null;
+  if (!d.moved) return;
+  sheet.classList.remove('dragging');
+  suppressSheetClick = true;
+  const [t0, y0] = d.samples[0], v = (e.clientY - y0) / Math.max(1, e.timeStamp - t0); // px/ms, + is down
+  const heights = sheetHeights(), h = sheetHeight();
+  let i = STATES.reduce((best, s, j) => (Math.abs(heights[s] - h) < Math.abs(heights[STATES[best]] - h) ? j : best), 0);
+  if (Math.abs(v) > 0.4) {
+    // A flick goes one stop past where the finger let go, in its direction.
+    const above = STATES.findIndex((s) => heights[s] > h), below = STATES.findLastIndex((s) => heights[s] < h);
+    i = v < 0 ? (above === -1 ? 2 : above) : (below === -1 ? 0 : below);
+  }
+  setSheet(STATES[i]);
+};
+sheetHead.addEventListener('pointerup', endSheetDrag);
+sheetHead.addEventListener('pointercancel', endSheetDrag);
+// A drag that started on a tab is not a tap on it.
+sheetHead.addEventListener('click', (e) => { if (suppressSheetClick) { e.stopPropagation(); e.preventDefault(); } suppressSheetClick = false; }, true);
+$('grabber').onclick = () => setSheet(sheet.dataset.state === 'peek' ? 'half' : 'peek');
+for (const b of sheet.querySelectorAll('[role=tab]')) b.onclick = () => {
+  if (b.dataset.tab === sheet.dataset.tab && sheet.dataset.state !== 'peek') return setSheet('peek');
+  setTab(b.dataset.tab);
+  if (sheet.dataset.state === 'peek') setSheet('half');
+};
+sheetMode.addEventListener('change', () => setSheet(sheetMode.matches ? 'peek' : sheet.dataset.state));
+addEventListener('resize', () => setSheet(sheet.dataset.state));
+
+// A phone screen holds a smaller crowd, at a shorter range, than a monitor.
+if (sheetMode.matches) { $('range').value = 120; $('count').value = 16; }
+setSheet('peek');
 
 // Controls.
 const fmt = {
@@ -469,7 +659,7 @@ for (const name of Object.keys(fmt)) {
 }
 // A tip inside a label would otherwise hand focus to the slider and close itself.
 for (const tip of document.querySelectorAll('.tip')) tip.addEventListener('click', (e) => e.preventDefault());
-$('scatter').onclick = scatter;
+$('scatter').onclick = () => { scatter(); showMap(); };
 $('clear').onclick = () => { clearAll(); log('cleared'); };
 $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; schedule(); };
 $('step').onclick = () => tick();
@@ -478,14 +668,14 @@ $('sendBtn').onclick = () => {
   const from = $('from').value, to = $('to').value;
   if (!from || !to) return;
   if (from === to) { log('pick two different devices', 'bad'); return; }
-  send(from, to);
+  send(from, to); showMap();
 };
 $('random').onclick = () => {
   const ids = [...devices.keys()];
   if (ids.length < 2) return;
   const from = ids[Math.floor(Math.random() * ids.length)];
   let to; do { to = ids[Math.floor(Math.random() * ids.length)]; } while (to === from);
-  send(from, to);
+  send(from, to); showMap();
 };
 
 resize();
