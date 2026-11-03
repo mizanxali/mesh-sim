@@ -22,6 +22,15 @@ python3 -m http.server -d web 8080   # open http://localhost:8080
 
 `web/` is the whole site once built: static files, deployable anywhere.
 
+## Deploy
+
+Hosted on Cloudflare Workers as static assets (`wrangler.jsonc`):
+
+```bash
+./build.sh
+npx wrangler deploy   # https://mesh-sim.mizanalip786.workers.dev
+```
+
 `cargo test` runs a three-device check on the host (message carried two hops,
 receipt carried back, sender told it was delivered).
 
